@@ -1,0 +1,7 @@
+include ':app'
+
+def capacitorSettings = file('capacitor.settings.gradle')
+if (!capacitorSettings.exists()) {
+    throw new GradleException('Capacitor Android dependencies are not synced. Run `npm run build && npx cap sync android` first.')
+}
+apply from: capacitorSettings

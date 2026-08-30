@@ -1,0 +1,17 @@
+{
+  "name": "@plugos/cli",
+  "version": "1.0.0",
+  "description": "ThePlugOS Developer CLI",
+  "bin": {
+    "plugos": "bin/plugos.js"
+  },
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "@plugos/core": "1.0.0",
+    "@plugos/sdk": "1.0.0"
+  }
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ThePlugOS Cashier Hub</string>
+    <string name="hub_channel_name">Cashier Hub operation</string>
+    <string name="hub_channel_description">Keeps the local-first Cashier Hub available while a branch is operating.</string>
+</resources>

@@ -1,0 +1,76 @@
+{
+  "name": "pharmacy-domain",
+  "version": "1.0.0",
+  "description": "ThePlugOS domain for Pharmacy Management",
+  "entities": [
+    {
+      "name": "prescription",
+      "schema": {
+        "status": "string",
+        "medication": "string",
+        "dosage": "string",
+        "patientId": "string"
+      }
+    },
+    {
+      "name": "inventory",
+      "schema": {
+        "drug_id": "string",
+        "stock": "number"
+      }
+    }
+  ],
+  "events": [
+    {
+      "action": "PRESCRIPTION_RECEIVED",
+      "entityType": "prescription"
+    },
+    {
+      "action": "MEDICATION_DISPENSED",
+      "entityType": "prescription"
+    },
+    {
+      "action": "STOCK_ADJUSTED",
+      "entityType": "inventory"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "prescription_lifecycle",
+      "initialState": "VERIFYING",
+      "transitions": [
+        {
+          "from": "VERIFYING",
+          "event": "PRESCRIPTION_RECEIVED",
+          "to": "APPROVED"
+        },
+        {
+          "from": "APPROVED",
+          "event": "MEDICATION_DISPENSED",
+          "to": "FULFILLED"
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "controlled_substance",
+      "condition": "event.payload.isControlled == true",
+      "action": "REQUIRE_PHARMACIST_APPROVAL"
+    }
+  ],
+  "roles": [
+    "CLERK",
+    "PHARMACIST"
+  ],
+  "permissions": [
+    {
+      "role": "CLERK",
+      "actions": ["PRESCRIPTION_RECEIVED"]
+    },
+    {
+      "role": "PHARMACIST",
+      "actions": ["*"]
+    }
+  ]
+}

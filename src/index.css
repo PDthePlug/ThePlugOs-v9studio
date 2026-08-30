@@ -1,0 +1,72 @@
+@import "tailwindcss";
+@import "./styles/marketing.css";
+@import "./styles/operating-shell.css";
+@import "./styles/operator-gate.css";
+@import "./styles/setup-wizard.css";
+
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+html, body {
+  background-color: #020617;
+  color: #f8fafc;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: auto;
+  -webkit-tap-highlight-color: transparent;
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+}
+
+@layer utilities {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Safe Area Utilities */
+  .pt-safe {
+    padding-top: max(1rem, var(--sat));
+  }
+  .pb-safe {
+    padding-bottom: max(1rem, var(--sab));
+  }
+
+  /* Touch Target minimums & native tap response */
+  .touch-btn, button, select, input {
+    min-height: 48px;
+    touch-action: manipulation;
+  }
+  .touch-btn:active, button:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Thermal Printer Styling */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+  }
+  /* Hide background elements during print */
+  header, main, nav, .no-print {
+    display: none !important;
+  }
+}

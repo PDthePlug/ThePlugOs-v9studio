@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Android 12+ treats Bluetooth proximity as a runtime nearby-device
+         capability.  The Hub checks the grant before advertising and reports
+         unavailable instead of claiming Bluetooth is active. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Wi-Fi Direct service discovery on Android 6-12L requires the legacy
+         fine-location runtime grant even though ThePlugOS never reads or stores
+         location. Android 13+ uses NEARBY_WIFI_DEVICES below. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".ThePlugOSApplication"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:label="@string/app_name"
+        android:usesCleartextTraffic="false"
+        android:theme="@style/AppTheme">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".native.NativeHubEnrollmentActivity" android:exported="false" />
+        <activity android:name=".native.NativeTerminalEnrollmentActivity" android:exported="false" />
+        <activity android:name=".native.NativeTerminalLocalLinkActivity" android:exported="false" />
+        <activity android:name=".native.NativeTerminalStaffSignInActivity" android:exported="false" />
+        <activity android:name=".native.NativeTerminalOperationalWorkspaceActivity" android:exported="false" />
+        <activity android:name=".native.NativeStaffSignInActivity" android:exported="false" />
+        <activity android:name=".native.NativeStaffCredentialResetActivity" android:exported="false" />
+
+        <service
+            android:name=".native.HubForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync|connectedDevice" />
+    </application>
+</manifest>

@@ -1,0 +1,650 @@
+import React, { useEffect, useState } from 'react';
+import { PlugOSProvider, usePlugOS } from '@plugos/react';
+import { sdk } from '@plugos/sdk';
+import { IndexedDBStorageAdapter, InMemoryStorageAdapter } from '@plugos/core';
+import { UserSession, UserRole, OrderRecord, ProductItem, StaffMember, SupplierRecord, CustomerRecord, RestockRequest } from './types';
+import { INITIAL_PRODUCTS, INITIAL_STAFF, INITIAL_BRANCHES, INITIAL_SUPPLIERS, INITIAL_CUSTOMERS, INITIAL_RESTOCK_REQUESTS } from './data/mockData';
+
+// Role Workspaces
+import { WelcomeScreen } from './screens/WelcomeScreen';
+import { supabase } from './lib/supabase';
+import { RoleHeader } from './components/RoleHeader';
+import { OfflineHubInspector } from './components/OfflineHubInspector';
+import { DevicePairingWizard } from './components/DevicePairingWizard';
+import { CashierWorkspace } from './workspaces/CashierWorkspace';
+import { KitchenWorkspace } from './workspaces/KitchenWorkspace';
+import { ManagerWorkspace } from './workspaces/ManagerWorkspace';
+import { OwnerWorkspace } from './workspaces/OwnerWorkspace';
+import { AdminWorkspace } from './workspaces/AdminWorkspace';
+
+// FastFood & StoreItems Reducers
+import { reducers as fastfoodReducers } from '../fastfood-domain/src/index';
+
+// Helper function for local Web Audio API notification chimes
+function playNotificationChime(type: 'NEW_ORDER' | 'ORDER_READY' | 'SUCCESS') {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    
+    if (type === 'ORDER_READY') {
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(880, ctx.currentTime); // A5
+      osc1.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.15); // D6
+      gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start();
+      osc1.stop(ctx.currentTime + 0.45);
+    } else {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    }
+  } catch (e) {
+    console.log('Audio chime unavailable', e);
+  }
+}
+
+function MainOSApp() {
+  // Session State - starts on null to prompt role login
+  const [session, setSession] = useState<UserSession | null>(null);
+
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
+  const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
+  const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
+  const [suppliers, setSuppliers] = useState<SupplierRecord[]>(INITIAL_SUPPLIERS);
+  const [customers, setCustomers] = useState<CustomerRecord[]>(INITIAL_CUSTOMERS);
+  const [restockRequests, setRestockRequests] = useState<RestockRequest[]>(INITIAL_RESTOCK_REQUESTS);
+  const [kernelEvents, setKernelEvents] = useState<any[]>([]);
+  const [outboxCount, setOutboxCount] = useState<number>(0);
+  const [showHubInspector, setShowHubInspector] = useState<boolean>(false);
+  const [showPairingWizard, setShowPairingWizard] = useState<boolean>(false);
+  
+  // Business VAT Configuration (Disabled by default per Directive 017)
+  const [vatConfig, setVatConfig] = useState<{ enabled: boolean; rate: number }>({ enabled: false, rate: 15 });
+
+  // Supabase Auth Listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      if (currentSession?.user) {
+        // Hydrate from localStorage or use defaults
+        const storedProfile = localStorage.getItem('plugos_profile');
+        if (storedProfile) {
+          setSession(JSON.parse(storedProfile));
+        } else {
+          // If no stored profile, we might need to fetch it or default to Owner
+          // For MVP, we let WelcomeScreen handle the initial login which sets the profile.
+          // But if they refresh, we need it. Let's just create a basic one.
+          const basicSession: UserSession = {
+            userId: currentSession.user.id,
+            userName: currentSession.user.email?.split('@')[0] || 'User',
+            role: 'OWNER',
+            branchId: 'br-main',
+            branchName: 'Main Branch',
+            shiftId: `SHIFT-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+            deviceId: 'DEV-' + Math.random().toString(36).substr(2, 4).toUpperCase(),
+            permissions: ['POS_CREATE', 'PAYMENT_PROCESS', 'RECEIPT_PRINT']
+          };
+          setSession(basicSession);
+        }
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      if (!currentSession) {
+        setSession(null);
+        localStorage.removeItem('plugos_profile');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLoginSuccess = async (newSession: UserSession) => {
+    setSession(newSession);
+    localStorage.setItem('plugos_profile', JSON.stringify(newSession));
+    
+    // Attempt basic remote sync for MVP (download profile data)
+    try {
+      const { data: staffData } = await supabase.from('staff_members').select('*').eq('auth_id', newSession.userId).single();
+      if (staffData) {
+        const { data: branchData } = await supabase.from('branches').select('*').eq('id', staffData.branch_id).single();
+        if (branchData) {
+          await sdk.storage.set('branches', branchData.id, branchData);
+          await sdk.storage.set('businesses', branchData.business_id, { id: branchData.business_id });
+        }
+        await sdk.storage.set('staff', newSession.userId, staffData);
+      }
+      // Trigger reload of local state so the app reflects any downloaded data
+      // (This is a naive MVP sync, full offline sync is ignored as requested)
+    } catch (e) {
+      console.warn('Sync failed or tables missing', e);
+    }
+  };
+
+  // Kernel Boot Sequence
+  useEffect(() => {
+    let isMounted = true;
+
+    async function bootKernel() {
+      try {
+        await sdk.boot({
+          storageAdapter: new IndexedDBStorageAdapter(),
+        });
+
+        // Load or initialize persisted state
+        try {
+          const savedProducts = await sdk.storage.get('catalog', 'products');
+          if (Array.isArray(savedProducts) && savedProducts.length > 0) {
+            setProducts(savedProducts);
+          } else {
+            await sdk.storage.set('catalog', 'products', INITIAL_PRODUCTS);
+          }
+
+          const savedStaff = await sdk.storage.get('staff', 'directory');
+          if (Array.isArray(savedStaff) && savedStaff.length > 0) {
+            setStaffList(savedStaff);
+          } else {
+            await sdk.storage.set('staff', 'directory', INITIAL_STAFF);
+          }
+
+          const savedSuppliers = await sdk.storage.get('suppliers', 'directory');
+          if (Array.isArray(savedSuppliers) && savedSuppliers.length > 0) {
+            setSuppliers(savedSuppliers);
+          } else {
+            await sdk.storage.set('suppliers', 'directory', INITIAL_SUPPLIERS);
+          }
+
+          const savedCustomers = await sdk.storage.get('customers', 'database');
+          if (Array.isArray(savedCustomers) && savedCustomers.length > 0) {
+            setCustomers(savedCustomers);
+          } else {
+            await sdk.storage.set('customers', 'database', INITIAL_CUSTOMERS);
+          }
+
+          const savedRestock = await sdk.storage.get('restock', 'requests');
+          if (Array.isArray(savedRestock) && savedRestock.length > 0) {
+            setRestockRequests(savedRestock);
+          } else {
+            await sdk.storage.set('restock', 'requests', INITIAL_RESTOCK_REQUESTS);
+          }
+
+          const savedOrders = await sdk.storage.get('orders', 'history');
+          if (Array.isArray(savedOrders)) {
+            setOrders(savedOrders);
+          }
+
+          const savedVat = await sdk.storage.get('config', 'vat');
+          if (savedVat && typeof savedVat.enabled === 'boolean') {
+            setVatConfig(savedVat);
+          }
+        } catch (e) {
+          console.warn('Storage initialization fallback', e);
+        }
+
+        // Register domain state reducers
+        sdk.state.registerReducer('order', fastfoodReducers.order);
+        sdk.state.registerReducer('inventory', fastfoodReducers.inventory);
+
+        // Register operational business rules
+        sdk.rules.register('fastfood-domain', [
+          {
+            id: 'low_inventory_alert',
+            condition: 'event.payload.quantity < 10',
+            action: 'DISPATCH_MANAGER_ALERT'
+          }
+        ]);
+
+        // Subscribe to global event bus stream
+        sdk.events.subscribe('*', async (event: any) => {
+          if (!isMounted) return;
+          setKernelEvents(prev => [event, ...prev]);
+        });
+
+      } catch (err) {
+        console.error('ThePlugOS Kernel boot exception:', err);
+      }
+    }
+
+    bootKernel();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleUpdateProducts = async (updated: ProductItem[]) => {
+    setProducts(updated);
+    try {
+      await sdk.storage.set('catalog', 'products', updated);
+    } catch (e) {
+      console.error('Failed saving products', e);
+    }
+  };
+
+  const handleUpdateStaff = async (updated: StaffMember[]) => {
+    setStaffList(updated);
+    try {
+      await sdk.storage.set('staff', 'directory', updated);
+    } catch (e) {
+      console.error('Failed saving staff', e);
+    }
+  };
+
+  const handleUpdateSuppliers = async (updated: SupplierRecord[]) => {
+    setSuppliers(updated);
+    try {
+      await sdk.storage.set('suppliers', 'directory', updated);
+    } catch (e) {
+      console.error('Failed saving suppliers', e);
+    }
+  };
+
+  const handleUpdateCustomers = async (updated: CustomerRecord[]) => {
+    setCustomers(updated);
+    try {
+      await sdk.storage.set('customers', 'database', updated);
+    } catch (e) {
+      console.error('Failed saving customers', e);
+    }
+  };
+
+  const handleUpdateRestockRequests = async (updated: RestockRequest[]) => {
+    setRestockRequests(updated);
+    try {
+      await sdk.storage.set('restock', 'requests', updated);
+    } catch (e) {
+      console.error('Failed saving restock requests', e);
+    }
+  };
+
+  const handleAddRestockRequest = async (request: RestockRequest) => {
+    const updated = [request, ...restockRequests];
+    setRestockRequests(updated);
+    try {
+      await sdk.storage.set('restock', 'requests', updated);
+    } catch (e) {
+      console.error('Failed adding restock request', e);
+    }
+  };
+
+  const handleUpdateVatConfig = async (newConfig: { enabled: boolean; rate: number }) => {
+    setVatConfig(newConfig);
+    try {
+      await sdk.storage.set('config', 'vat', newConfig);
+    } catch (e) {
+      console.error('Failed saving VAT config', e);
+    }
+  };
+
+  // Handle placing a new order from Cashier terminal
+  const handlePlaceOrder = async (newOrder: OrderRecord) => {
+    const updatedOrders = [newOrder, ...orders];
+    setOrders(updatedOrders);
+    try {
+      await sdk.storage.set('orders', 'history', updatedOrders);
+    } catch (e) {
+      console.error('Failed saving orders', e);
+    }
+
+    // Phase 1, 2 & 3: Single Source of Truth Inventory & Recipe Engine
+    // Map existing products array to mutate stock for recipes and direct items
+    let updatedProducts = [...products];
+
+    newOrder.items.forEach(orderItem => {
+      const prod = updatedProducts.find(p => p.id === orderItem.productId || p.name === orderItem.name);
+      if (prod) {
+        // Deduct direct product stock
+        prod.stock = Math.max(0, prod.stock - orderItem.quantity);
+
+        // If product has recipe ingredients (BOM), deduct raw ingredients from inventory
+        if (prod.recipe && prod.recipe.length > 0) {
+          prod.recipe.forEach(ingredient => {
+            const rawItem = updatedProducts.find(
+              p => p.id === ingredient.rawItemId || p.name === ingredient.rawItemName
+            );
+            if (rawItem) {
+              const qtyToDeduct = (ingredient.quantity || 0) * orderItem.quantity;
+              rawItem.stock = Math.max(0, Number((rawItem.stock - qtyToDeduct).toFixed(2)));
+            }
+          });
+        }
+      }
+    });
+
+    setProducts(updatedProducts);
+    try {
+      await sdk.storage.set('catalog', 'products', updatedProducts);
+    } catch (e) {
+      console.error('Failed updating product stock', e);
+    }
+
+    // Phase 6: Customer Database Auto-Update
+    if (newOrder.customerPhone && newOrder.customerPhone.trim().length > 0) {
+      const cleanPhone = newOrder.customerPhone.trim();
+      const existingCust = customers.find(c => c.phone === cleanPhone);
+      const itemNames = newOrder.items.map(i => i.name);
+
+      let updatedCustList: CustomerRecord[];
+      if (existingCust) {
+        const newVisits = existingCust.visits + 1;
+        const newLifetime = existingCust.lifetimeSpend + newOrder.totalAmount;
+        const newAvg = Number((newLifetime / newVisits).toFixed(2));
+        const combinedFavs = Array.from(new Set([...existingCust.favouriteProducts, ...itemNames]));
+
+        updatedCustList = customers.map(c => 
+          c.id === existingCust.id 
+            ? {
+                ...c,
+                visits: newVisits,
+                lifetimeSpend: newLifetime,
+                avgBasket: newAvg,
+                lastVisit: newOrder.createdAt,
+                favouriteProducts: combinedFavs,
+                name: newOrder.customerName || c.name
+              }
+            : c
+        );
+      } else {
+        const newCust: CustomerRecord = {
+          id: `cust-${Date.now().toString().slice(-4)}`,
+          phone: cleanPhone,
+          name: newOrder.customerName || 'Township Customer',
+          visits: 1,
+          lifetimeSpend: newOrder.totalAmount,
+          avgBasket: newOrder.totalAmount,
+          lastVisit: newOrder.createdAt,
+          favouriteProducts: itemNames,
+          createdAt: newOrder.createdAt
+        };
+        updatedCustList = [newCust, ...customers];
+      }
+
+      setCustomers(updatedCustList);
+      try {
+        await sdk.storage.set('customers', 'database', updatedCustList);
+      } catch (e) {
+        console.error('Failed saving updated customer profile', e);
+      }
+    }
+
+    if (!isOnline) {
+      setOutboxCount(prev => prev + 1);
+    }
+
+    playNotificationChime('NEW_ORDER');
+
+    // Dispatch event into Kernel Engine
+    await sdk.events.publish(
+      newOrder.id,
+      'order',
+      'ORDER_PLACED',
+      {
+        orderId: newOrder.id,
+        branchId: newOrder.branchId,
+        cashierId: newOrder.cashierId,
+        items: newOrder.items,
+        totalAmount: newOrder.totalAmount,
+        paymentType: newOrder.paymentType,
+        timestamp: newOrder.createdAt
+      }
+    );
+
+    // Trigger low inventory event if items drop to 10 or lower
+    updatedProducts.forEach(async (p) => {
+      const isOrdered = newOrder.items.some(i => i.productId === p.id || i.name === p.name);
+      if (isOrdered && p.stock <= 10) {
+        await sdk.events.publish(
+          p.id,
+          'inventory',
+          p.stock === 0 ? 'OUT_OF_STOCK_ALERT' : 'LOW_INVENTORY_ALERT',
+          { productId: p.id, productName: p.name, currentStock: p.stock, timestamp: new Date().toISOString() }
+        );
+      }
+    });
+  };
+
+  // Phase 7: Handle Void / Refund Order and restore Inventory
+  const handleVoidOrder = async (orderId: string, refundedBy: string) => {
+    const targetOrder = orders.find(o => o.id === orderId);
+    if (!targetOrder || targetOrder.status === 'CANCELLED') return;
+
+    // 1. Mark order as CANCELLED
+    const updatedOrders = orders.map(o => 
+      o.id === orderId 
+        ? { 
+            ...o, 
+            status: 'CANCELLED' as const, 
+            voidedAt: new Date().toISOString(),
+            refundedBy 
+          } 
+        : o
+    );
+
+    setOrders(updatedOrders);
+    try {
+      await sdk.storage.set('orders', 'history', updatedOrders);
+    } catch (e) {
+      console.error('Failed saving voided order', e);
+    }
+
+    // 2. Revert Stock Deductions (Products & Recipes)
+    let restoredProducts = [...products];
+    targetOrder.items.forEach(orderItem => {
+      const prod = restoredProducts.find(p => p.id === orderItem.productId || p.name === orderItem.name);
+      if (prod) {
+        prod.stock += orderItem.quantity;
+        if (prod.recipe && prod.recipe.length > 0) {
+          prod.recipe.forEach(ingredient => {
+            const rawItem = restoredProducts.find(
+              p => p.id === ingredient.rawItemId || p.name === ingredient.rawItemName
+            );
+            if (rawItem) {
+              const qtyToRestore = (ingredient.quantity || 0) * orderItem.quantity;
+              rawItem.stock = Number((rawItem.stock + qtyToRestore).toFixed(2));
+            }
+          });
+        }
+      }
+    });
+
+    setProducts(restoredProducts);
+    try {
+      await sdk.storage.set('catalog', 'products', restoredProducts);
+    } catch (e) {
+      console.error('Failed saving restored stock', e);
+    }
+
+    // 3. Publish Event
+    await sdk.events.publish(
+      orderId,
+      'order',
+      'ORDER_VOIDED',
+      {
+        orderId,
+        refundedBy,
+        voidedAt: new Date().toISOString()
+      }
+    );
+  };
+
+  // Handle kitchen order status updates
+  const handleUpdateOrderStatus = async (orderId: string, status: OrderRecord['status']) => {
+    const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status } : o);
+    setOrders(updatedOrders);
+    try {
+      await sdk.storage.set('orders', 'history', updatedOrders);
+    } catch (e) {
+      console.error('Failed saving orders status', e);
+    }
+
+    if (status === 'READY') {
+      playNotificationChime('ORDER_READY');
+    } else {
+      playNotificationChime('SUCCESS');
+    }
+
+    let actionName = 'ORDER_STATUS_UPDATED';
+    if (status === 'PREP') actionName = 'KITCHEN_PREP_STARTED';
+    if (status === 'READY') actionName = 'ORDER_READY_FOR_COLLECTION';
+    if (status === 'COMPLETED') actionName = 'ORDER_HANDOVER_COMPLETED';
+
+    await sdk.events.publish(
+      orderId,
+      'order',
+      actionName,
+      { orderId, status, timestamp: new Date().toISOString() }
+    );
+  };
+
+  const handleToggleOnline = () => {
+    const nextState = !isOnline;
+    setIsOnline(nextState);
+    sdk.network.setOnlineStatus(nextState);
+    if (nextState) {
+      setOutboxCount(0); // Flush outbox on reconnect
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+      
+      {/* Role Authentication Modal - shown when session locked or not authenticated */}
+      {!session && (
+        <WelcomeScreen onLoginSuccess={handleLoginSuccess} />
+      )}
+
+      {session && (
+        <>
+          {/* OS Shell Header */}
+          <RoleHeader
+            session={session}
+            isOnline={isOnline}
+            onToggleOnline={handleToggleOnline}
+            outboxCount={outboxCount}
+            onLockSession={() => setSession(null)}
+            onOpenHubInspector={() => setShowHubInspector(true)}
+            onOpenPairingWizard={() => setShowPairingWizard(true)}
+          />
+
+          {/* Local Hub Infrastructure & Offline Mesh Inspector Modal */}
+          {showHubInspector && (
+            <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 p-4 overflow-y-auto flex items-center justify-center">
+              <OfflineHubInspector
+                kernel={sdk}
+                onClose={() => setShowHubInspector(false)}
+              />
+            </div>
+          )}
+
+          {/* Device Pairing Wizard Modal */}
+          {showPairingWizard && (
+            <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 p-4 overflow-y-auto flex items-center justify-center">
+              <DevicePairingWizard
+                kernel={sdk}
+                branchName={session.branchName}
+                onClose={() => setShowPairingWizard(false)}
+              />
+            </div>
+          )}
+
+          {/* Strict Role-Based Workspace Routing */}
+          <main className="flex-1">
+            {session.role === 'CASHIER' && (
+              <CashierWorkspace
+                session={session}
+                kernel={sdk}
+                orders={orders}
+                products={products}
+                onPlaceOrder={handlePlaceOrder}
+                onUpdateOrderStatus={handleUpdateOrderStatus}
+                onVoidOrder={handleVoidOrder}
+                vatConfig={vatConfig}
+                customers={customers}
+                onUpdateCustomers={handleUpdateCustomers}
+              />
+            )}
+
+            {session.role === 'KITCHEN_STAFF' && (
+              <KitchenWorkspace
+                session={session}
+                kernel={sdk}
+                orders={orders}
+                onUpdateOrderStatus={handleUpdateOrderStatus}
+              />
+            )}
+
+            {session.role === 'MANAGER' && (
+              <ManagerWorkspace
+                session={session}
+                kernel={sdk}
+                orders={orders}
+                products={products}
+                onUpdateProducts={handleUpdateProducts}
+                staffList={staffList}
+                onUpdateStaff={handleUpdateStaff}
+                vatConfig={vatConfig}
+                onUpdateVatConfig={handleUpdateVatConfig}
+                suppliers={suppliers}
+                onUpdateSuppliers={handleUpdateSuppliers}
+                restockRequests={restockRequests}
+                onUpdateRestockRequests={handleUpdateRestockRequests}
+                customers={customers}
+                onUpdateCustomers={handleUpdateCustomers}
+              />
+            )}
+
+            {session.role === 'OWNER' && (
+              <OwnerWorkspace
+                session={session}
+                kernel={sdk}
+                orders={orders}
+                products={products}
+                onUpdateProducts={handleUpdateProducts}
+                staffList={staffList}
+                onUpdateStaff={handleUpdateStaff}
+                vatConfig={vatConfig}
+                onUpdateVatConfig={handleUpdateVatConfig}
+                suppliers={suppliers}
+                onUpdateSuppliers={handleUpdateSuppliers}
+                restockRequests={restockRequests}
+                onUpdateRestockRequests={handleUpdateRestockRequests}
+                customers={customers}
+                onUpdateCustomers={handleUpdateCustomers}
+              />
+            )}
+
+            {session.role === 'ADMINISTRATOR' && (
+              <AdminWorkspace
+                session={session}
+                kernel={sdk}
+                kernelEvents={kernelEvents}
+              />
+            )}
+          </main>
+        </>
+      )}
+
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <PlugOSProvider sdk={sdk}>
+      <MainOSApp />
+    </PlugOSProvider>
+  );
+}

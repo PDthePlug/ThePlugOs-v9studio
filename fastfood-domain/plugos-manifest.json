@@ -1,0 +1,84 @@
+{
+  "name": "fastfood-domain",
+  "version": "1.0.0",
+  "description": "ThePlugOS domain for Township Fast-Food Operations",
+  "entities": [
+    {
+      "name": "order",
+      "schema": {
+        "status": "string",
+        "items": "array",
+        "total": "number"
+      }
+    },
+    {
+      "name": "inventory",
+      "schema": {
+        "item_id": "string",
+        "quantity": "number"
+      }
+    }
+  ],
+  "events": [
+    {
+      "action": "ORDER_PLACED",
+      "entityType": "order"
+    },
+    {
+      "action": "PAYMENT_RECEIVED",
+      "entityType": "order"
+    },
+    {
+      "action": "ORDER_PREPARED",
+      "entityType": "order"
+    },
+    {
+      "action": "INVENTORY_DEPLETED",
+      "entityType": "inventory"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "order_lifecycle",
+      "initialState": "PENDING",
+      "transitions": [
+        {
+          "from": "PENDING",
+          "event": "PAYMENT_RECEIVED",
+          "to": "PREP"
+        },
+        {
+          "from": "PREP",
+          "event": "ORDER_PREPARED",
+          "to": "READY"
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "inventory_threshold",
+      "condition": "event.payload.quantity < 10",
+      "action": "NOTIFY_MANAGER"
+    }
+  ],
+  "roles": [
+    "CASHIER",
+    "KITCHEN_STAFF",
+    "MANAGER"
+  ],
+  "permissions": [
+    {
+      "role": "CASHIER",
+      "actions": ["ORDER_PLACED", "PAYMENT_RECEIVED"]
+    },
+    {
+      "role": "KITCHEN_STAFF",
+      "actions": ["ORDER_PREPARED", "INVENTORY_DEPLETED"]
+    },
+    {
+      "role": "MANAGER",
+      "actions": ["*"]
+    }
+  ]
+}
