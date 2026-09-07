@@ -28,7 +28,7 @@ const [
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalEnrollmentActivity.kt'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalStaffSignInActivity.kt'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalLocalLinkActivity.kt'),
-  load('docs/architecture/ADR-012_ROLE_BASED_MERCHANT_EXPERIENCE_RESTORATION.md'),
+  load('docs/architecture/ADR-013_ROLE_BASED_MERCHANT_EXPERIENCE_RESTORATION.md'),
   load('docs/architecture/LEGACY_BROWSER_PROTOTYPE_RETIREMENT.md'),
   load('docs/operations/RELEASE_STATUS.md'),
 ]);
