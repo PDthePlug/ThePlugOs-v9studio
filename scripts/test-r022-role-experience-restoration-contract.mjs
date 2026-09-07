@@ -9,11 +9,24 @@ const requireText = (subject, fragment, message = `Expected source to contain: $
   assert.ok(subject.includes(fragment), message);
 };
 
-const [packageSource, app, roleGate, nativeStaffSignIn, legacyRetirement, releaseStatus] = await Promise.all([
+const [
+  packageSource,
+  app,
+  roleGate,
+  nativeStaffSignIn,
+  terminalStaffSignIn,
+  terminalLocalLink,
+  adr,
+  legacyRetirement,
+  releaseStatus,
+] = await Promise.all([
   load('package.json'),
   load('src/App.tsx'),
   load('src/components/RoleLoginModal.tsx'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeStaffSignInActivity.kt'),
+  load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalStaffSignInActivity.kt'),
+  load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalLocalLinkActivity.kt'),
+  load('docs/architecture/ADR-012_ROLE_BASED_MERCHANT_EXPERIENCE_RESTORATION.md'),
   load('docs/architecture/LEGACY_BROWSER_PROTOTYPE_RETIREMENT.md'),
   load('docs/operations/RELEASE_STATUS.md'),
 ]);
@@ -44,7 +57,7 @@ for (const mutation of ['.insert(', '.upsert(', '.update(', '.delete(', '.rpc(']
   assert.ok(!roleGate.includes(mutation), `The owner role surface must remain free of direct operational mutation: ${mutation}`);
 }
 
-// The PIN remains native and successful verification returns control to role routing.
+// The Hub-device PIN remains native and successful verification returns control to role routing.
 requireText(nativeStaffSignIn, 'TYPE_NUMBER_VARIATION_PASSWORD');
 requireText(nativeStaffSignIn, 'beginStaffSessionFromNativeScreen');
 requireText(nativeStaffSignIn, 'Who’s working this station?');
@@ -54,6 +67,17 @@ requireText(nativeStaffSignIn, 'Manager');
 requireText(nativeStaffSignIn, 'setResult(RESULT_OK)');
 assert.ok(!nativeStaffSignIn.includes('@PluginMethod'), 'The PIN screen must remain outside the Capacitor command bridge.');
 
+// A separately enrolled terminal follows the same product flow but keeps its stronger signed admission/session chain.
+requireText(terminalStaffSignIn, 'TYPE_NUMBER_VARIATION_PASSWORD');
+requireText(terminalStaffSignIn, 'cloud.startTerminalStaffSession(selected.staffId, nativePin)');
+requireText(terminalStaffSignIn, 'controller.installTerminalStaffSession');
+requireText(terminalStaffSignIn, 'setResult(RESULT_OK)');
+requireText(terminalStaffSignIn, 'finish()');
+requireText(terminalStaffSignIn, 'Who’s working this station?');
+assert.ok(!terminalStaffSignIn.includes('@PluginMethod'), 'Terminal PIN/session material must remain outside the Capacitor bridge.');
+requireText(terminalLocalLink, 'if (requestCode == TERMINAL_SIGN_IN_REQUEST && resultCode == RESULT_OK)');
+requireText(terminalLocalLink, 'startActivity(Intent(this, NativeTerminalOperationalWorkspaceActivity::class.java))');
+
 // App routing remains downstream of the native capability boundary.
 requireText(app, 'hasNativeHubHost() ? <NativeStationAccess /> : <MainOSApp />');
 requireText(app, 'nativeStationRole === \'MANAGER\'');
@@ -61,6 +85,10 @@ requireText(app, "nativeStationRole === 'KITCHEN_STAFF'");
 requireText(app, "nativeStationRole === 'OWNER' || nativeStationRole === 'ADMINISTRATOR'");
 
 // R022 is a UX restoration, not a rollback of R021 or release authority.
+requireText(adr, 'React routes only from `getNativeOperatorContext()`');
+requireText(adr, 'Cashier');
+requireText(adr, 'Kitchen');
+requireText(adr, 'Manager');
 requireText(legacyRetirement, 'Android Cashier Hub is the local operational authority');
 assert.match(releaseStatus, /\*\*Status:\*\* HOLD/, 'Role experience restoration must not grant release authority.');
 
