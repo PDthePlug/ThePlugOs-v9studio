@@ -6,8 +6,9 @@
 - **Last reconciled source:** the native Cashier Hub authority foundation;
   source contracts for order/cash/inventory/kitchen/station workflows; R010
   terminal enrollment/revocation, R011 renewal, R012 native credential recovery,
-  R013 schema hardening, ADR-007 modern Edge API-key resolution, and ADR-008
-  production migration-ledger safeguards
+  R013 schema hardening, ADR-007 modern Edge API-key resolution, ADR-008
+  production migration-ledger safeguards, ADR-012/R022 role-experience
+  restoration, and ADR-013/R023 merchant operational surfaces
 - **Production mutation authority:** narrowly authorized for the exact
   R001A→R012 controlled remediation sequence in
   `docs/evidence/CONTROLLED_PRODUCTION_REMEDIATION_2026-08-26.md`; that
@@ -77,6 +78,17 @@ The Android host now has a source-only native station-entry and local
 session-end path that does not borrow an Owner browser session. This does not
 constitute a cloud logout, a hardware acceptance result, or a production
 release claim.
+
+ADR-012/R022 restores a recognizable role-based merchant entry experience
+without returning PIN verification or role selection to React. ADR-013/R023
+then restores merchant-facing operational hierarchy across the source-only
+Cashier, Kitchen, and Manager station surfaces: Cashier follows build order →
+take payment → hand over; Kitchen follows waiting → preparing → ready; Manager
+sees cash control, order exceptions, and counted-stock tasks. The same native
+operator-context, command-request, exact-retry, and native-confirmed-abandonment
+boundaries remain in force. This is source-level UX evidence only, not an
+Android build, physical station, multi-device, cloud-acknowledgement, payment
+settlement, or production-release result.
 
 The source now contains an owner-only device-pairing control, terminal
 admission/revocation and renewal contracts, and a native terminal local-link
