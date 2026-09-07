@@ -128,7 +128,7 @@ requireText(app, 'NativeAuthorityStatusStation');
 requireText(app, "nativeStationRole === 'OWNER' || nativeStationRole === 'ADMINISTRATOR'");
 requireText(app, 'selectOwnerBranch');
 requireText(roleLogin, 'onSelectBranch?: (branchId: string) => void;');
-requireText(roleLogin, 'const activeBranches = branches.filter((branch) => branch.isActive);');
+requireText(roleLogin, 'branches.filter((branch) => branch.isActive)');
 requireText(pairingControl, 'Device pairing');
 requireText(pairingControl, 'Open terminal local-link status');
 requireText(pairingControl, 'setCode(null);');
