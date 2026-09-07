@@ -58,6 +58,13 @@ html, body {
   }
 }
 
+/* The owner access drawer uses a warm/light presentation layer. Tailwind's
+   amber-100 text token is intentionally bright for dark surfaces, so make
+   fail-closed owner configuration notices readable on this light panel. */
+.plug-access-panel .text-amber-100 {
+  color: #7a4b00 !important;
+}
+
 /* Thermal Printer Styling */
 @media print {
   body {
