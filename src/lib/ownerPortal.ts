@@ -34,15 +34,19 @@ const normaliseConfiguredOrigin = (value: string, allowLocalDevelopment: boolean
     const isLocalDevelopmentOrigin = allowLocalDevelopment
       && parsed.protocol === 'http:'
       && localDevelopmentHosts.has(parsed.hostname);
-    const isExactOrigin = configured === parsed.origin
-      && parsed.pathname === '/'
+
+    // The security boundary is the URL origin, not the byte-for-byte spelling
+    // of the configured value. Accept the semantically equivalent root form
+    // with an optional trailing slash (and URL canonicalisation such as :443),
+    // while still rejecting paths, query/hash state, credentials and wildcards.
+    const isRootOrigin = parsed.pathname === '/'
       && !parsed.search
       && !parsed.hash
       && !parsed.username
       && !parsed.password
       && !parsed.hostname.includes('*');
 
-    if (!isExactOrigin || (parsed.protocol !== 'https:' && !isLocalDevelopmentOrigin)) {
+    if (!isRootOrigin || (parsed.protocol !== 'https:' && !isLocalDevelopmentOrigin)) {
       return null;
     }
     return parsed.origin;
