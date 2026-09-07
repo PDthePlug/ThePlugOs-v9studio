@@ -63,7 +63,15 @@ requireText(app, 'return hasNativeHubHost() ? <NativeStationAccess /> : <MainOSA
 requireText(app, 'await localHubRuntime.endNativeStaffSession();');
 requireText(app, "nativeStationRole === 'KITCHEN_STAFF'");
 requireText(app, "nativeStationRole === 'MANAGER'");
-requireText(roleLogin, 'This browser cannot select a staff identity or become a Cashier, Kitchen, or Manager station.');
+
+// Merchant copy may change, but the browser may never regain staff identity or PIN authority.
+requireText(roleLogin, 'hasNativeHubHost');
+requireText(roleLogin, 'localHubRuntime.openNativeStaffSignIn()');
+requireText(roleLogin, 'localHubRuntime.getNativeOperatorContext()');
+requireText(roleLogin, 'onOpenNativeStation(context.role)');
+assert.ok(!roleLogin.includes('verifyStaffPin'), 'Role-login UX must not reintroduce browser PIN verification.');
+assert.ok(!roleLogin.includes('type="password"'), 'Role-login UX must not capture a staff PIN in React.');
+
 for (const source of [cashier, kitchen, manager]) {
   requireText(source, 'onEndNativeSession: () => Promise<void>;');
   requireText(source, 'End native staff session');
