@@ -14,6 +14,7 @@ const [
   app,
   roleGate,
   nativeStaffSignIn,
+  terminalEnrollment,
   terminalStaffSignIn,
   terminalLocalLink,
   adr,
@@ -24,6 +25,7 @@ const [
   load('src/App.tsx'),
   load('src/components/RoleLoginModal.tsx'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeStaffSignInActivity.kt'),
+  load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalEnrollmentActivity.kt'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalStaffSignInActivity.kt'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalLocalLinkActivity.kt'),
   load('docs/architecture/ADR-012_ROLE_BASED_MERCHANT_EXPERIENCE_RESTORATION.md'),
@@ -67,7 +69,13 @@ requireText(nativeStaffSignIn, 'Manager');
 requireText(nativeStaffSignIn, 'setResult(RESULT_OK)');
 assert.ok(!nativeStaffSignIn.includes('@PluginMethod'), 'The PIN screen must remain outside the Capacitor command bridge.');
 
-// A separately enrolled terminal follows the same product flow but keeps its stronger signed admission/session chain.
+// A fresh paired terminal must move from accepted invite -> verified local link -> staff PIN automatically.
+requireText(terminalEnrollment, '.putExtra(NativeTerminalLocalLinkActivity.EXTRA_AUTO_SIGN_IN, true)');
+requireText(terminalLocalLink, 'EXTRA_AUTO_SIGN_IN');
+requireText(terminalLocalLink, 'snapshot.state == TerminalLocalLinkState.AUTHENTICATED');
+requireText(terminalLocalLink, 'openStaffSignIn()');
+
+// A separately enrolled terminal keeps its stronger signed admission/session chain and then opens the role workspace.
 requireText(terminalStaffSignIn, 'TYPE_NUMBER_VARIATION_PASSWORD');
 requireText(terminalStaffSignIn, 'cloud.startTerminalStaffSession(selected.staffId, nativePin)');
 requireText(terminalStaffSignIn, 'controller.installTerminalStaffSession');
