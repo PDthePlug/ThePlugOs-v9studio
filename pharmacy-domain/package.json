@@ -1,0 +1,16 @@
+{
+  "name": "@plugos/pharmacy-domain",
+  "version": "1.0.0",
+  "description": "Pharmacy Reference Domain",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@plugos/core": "1.0.0",
+    "@plugos/sdk": "1.0.0"
+  },
+  "devDependencies": {
+    "@plugos/testing": "1.0.0"
+  }
+}

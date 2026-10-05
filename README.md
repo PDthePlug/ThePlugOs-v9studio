@@ -1,48 +1,92 @@
-# ThePlugOS Browser
+# ThePlugOS
 
-Owner, manager, cashier and kitchen workspaces for a single-branch takeaway. The supplied browser application replaces the previous root by the user's selection. The native Android hub implementation remains on `archive/android-hub-2026-10-01`.
+ThePlugOS is a local-first operating system for high-chaos small-business
+operations. The first domain is township fast food.
 
-## Workspaces
+> **Current status: HOLD — not production-ready.** Read
+> [the release status](docs/operations/RELEASE_STATUS.md) before using this
+> source against any Supabase project or operational device.
 
-| Role | Capabilities |
-| --- | --- |
-| Owner | Shop overview, team creation, PIN reset/suspension, device invitations/revocation, menu editing, sales/stock/cash-up reporting and CSV export |
-| Manager | Opening float, physical cash-up, unpaid waiting-order cancellation, stock receipts/count/waste and operational reports |
-| Cashier | Searchable menu, stock-aware basket, cash payments/change, collection, recent ticket history and printable cash receipts |
-| Kitchen | Oldest-first queue, start cooking, mark ready, waiting times; financial fields stripped server-side |
+## What this source currently provides
 
-## Architecture
+- An owner-authenticated browser shell for the R001 business foundation.
+- A deliberately fail-closed Android-native Cashier Hub foundation: SQLCipher
+  local ledger, Android Keystore device keys, signed authorization bundles,
+  native PIN entry, durable outbox, and cloud-receiver source.
+- Owner-controlled Hub/terminal pairing source: cloud-issued one-time codes,
+  Keystore-bound terminal admissions and renewal, and measured LAN mDNS,
+  Wi-Fi Direct, Bluetooth-proximity, pinned-TLS local-link plumbing.
+- Owner-authorized native credential recovery source: browser-issued one-time
+  reset codes, Hub Keystore proof, and native-only PIN entry.
+- Ordered R001A, R001–R012 migration source and Edge Function source. Source
+  implementation and a narrow remediation window do not constitute a deployed
+  product release.
 
-React 19, TanStack Start, Tailwind and Better Auth. All operations persist in PostgreSQL and are scoped to the authenticated owner or paired device's tenant. PIN sessions last 12 hours. Device secrets use HTTP-only cookies, with hashes stored in the database. Tenant writes are serialized inside transactions. Orders, inventory changes and cash-shift commands support safe retries using request UUIDs.
+The browser does **not** provide operational authority, staff PIN entry,
+browser-to-browser LAN operation, payment settlement, or a live kitchen flow.
+An authenticated terminal link is not yet a terminal staff-command surface.
+Those functions remain gated until the stated staging and physical-device
+evidence exists.
 
-The server reserves stock when an order is placed. Only an unpaid waiting order may be cancelled; cancellation restores stock once. Payment belongs to the order's cash shift. Collection requires payment and READY status. A manager cannot close a shift while any tickets are outstanding. Counts and waste require a reason. New products start at zero stock.
+## Local source checks
 
-## Development and checks
+Use Node `22.22.2` and npm `11.9.0`:
 
-Node 24. `npm ci`, then `npm run dev`. The local database is disposable PGlite with the same migration files. No sample sales or cash shifts are seeded. The setup menu starts at zero stock.
+```bash
+npm ci --legacy-peer-deps --no-audit --no-fund
+npm run lint
+npm run build
+npm test
+```
 
-`npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
+The complete repository gate is available as `npm run test:all`. It includes
+the R001/R002 source checks and native-Hub static contracts; it does not replace
+Supabase staging, Deno deployment, Android build, or hardware acceptance.
 
-`npm test` exercises the real operational handlers and PGlite migrations; transport/auth middleware is mocked in that suite. `node scripts/qa-browser.mjs` drives real owner authentication, three independent device contexts, inventory, a cash sale, kitchen progression, collection, cash-up, reporting and desktop/mobile layouts. It is limited to localhost and creates disposable test records. Install Playwright Chromium (`npx playwright install chromium`) or supply `PLAYWRIGHT_EXECUTABLE_PATH`. The original scaffold-only tests are retained as `npm run test:template`; they are not product acceptance tests.
+## Android Cashier Hub
 
-## Production configuration
+Use JDK 21 and Android SDK API 36:
 
-Vercel project: `theplugos-v9studio`, production branch `main`.
+```bash
+npm run android:sync
+npm run android:assemble:debug
+```
 
-Required server environment variables:
+The build has no default cloud endpoint or issuer key. Supply only staging or
+production-approved public configuration through Gradle properties, never
+browser variables or source control. See
+[the Android build and security guide](docs/implementation/ANDROID_CASHIER_HUB_BUILD_AND_SECURITY.md).
 
-- `DATABASE_URL`: durable PostgreSQL connection, server only; database/schema dedicated to this browser application.
-- `BETTER_AUTH_SECRET`: a strong stable random secret, server only.
-- `BETTER_AUTH_URL`: `https://theplugos-v9studio.vercel.app`.
+## Database and release safety
 
-Optional `VITE_GROK_OAUTH_ENABLED=true` plus server `GROK_AUTH_CLIENT_ID`, `GROK_AUTH_CLIENT_SECRET`, `GROK_AUTH_ISSUER` enable an explicitly configured broker. Email/password owner authentication works without broker credentials. Do not deploy preview secrets or `PLUGOS_PREVIEW` to production.
+The only deployment inputs are the ordered files in `supabase/migrations/` and
+their corresponding preflight/validation scripts. Artifacts in
+`supabase/quarantine/` are forensic reference only and must not be applied.
 
-Apply migrations explicitly with `npm run db:migrate` against the dedicated target before opening owner access. Builds do not mutate databases. Production refuses the in-memory fallback. Owner sign-in displays an availability notice until the required configuration exists.
+Do not run R002 or R003 on production outside the exact owner-approved,
+ordered remediation record in
+[the controlled production remediation window](docs/evidence/CONTROLLED_PRODUCTION_REMEDIATION_2026-08-26.md).
+The normal clean-staging sequence is documented in
+[the Hub-authority rehearsal](docs/implementation/STAGING_HUB_AUTHORITY_REHEARSAL.md).
+The source-only release helper can run a local guard with
+`scripts/deploy-hub-cloud.sh --verify-source`; it refuses all remote mutation
+while the release status remains HOLD.
 
-The archived Supabase schema and owner identities are a different system. These migration files must not be applied blindly to that schema. New owner accounts and operations need an explicit data migration if historical data is required.
+## Frontend integration correction — 5 October 2026
 
-## Operational limits
+The frontend is restored to the established Supabase application, as requested
+by the project owner. Use the existing `VITE_SUPABASE_URL`,
+`VITE_SUPABASE_ANON_KEY` and canonical `VITE_OWNER_PORTAL_ORIGIN` configuration.
+Do not use the temporary Better Auth/database replacement from the takeover
+commits. This correction requires no new database or migration.
 
-This release is an online browser application. It does not implement LAN, Bluetooth, Wi-Fi Direct or authoritative offline financial synchronization. A basket draft survives a page refresh in its station session; financial actions require a successful server response. It supports cash only, one branch per owner, no refunds or card processing, and no password recovery email service. Reports cover the latest 30 days; ticket history covers 7 days; stock history shows the latest 100 movements. Cash receipts are not tax invoices.
+The owner portal now reads branch-scoped orders, catalog/stock and confirmed
+paid sales from existing RLS-protected projections. Cashier, kitchen and manager
+views refresh through the existing native device runtime. Native PIN and device
+credentials remain in their existing Android security boundary.
 
-Recovery: redeploy the prior main revision and restore the archived root if reverting architectures. Never run a database reset as part of rollback. Keep production database backups outside this repository.
+The user's authorization covers publishing this frontend correction to `main`
+and Vercel. It does not provide physical-device acceptance evidence or authorize
+unrelated database changes. See the release status for the remaining integration
+checks. `scripts/qa-supabase-renderer.mjs` tests independent renderer contexts with
+local fixtures only; it is not a real pairing or multi-device test.

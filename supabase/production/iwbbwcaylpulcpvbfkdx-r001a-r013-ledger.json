@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "projectRef": "iwbbwcaylpulcpvbfkdx",
+  "observedAtUtc": "2026-08-27T03:13:30.528Z",
+  "purpose": "Immutable source-to-remote record for the completed R001A–R013 production schema baseline. It prevents a later Function deployment from replaying those migrations.",
+  "entries": [
+    {
+      "remoteVersion": "20260826145405",
+      "remoteName": "001a_retire_unsupported_legacy_staff_pins",
+      "sourceFile": "supabase/migrations/001a_retire_unsupported_legacy_staff_pins.sql",
+      "sha256": "b2845ee84ec7b8b75f545a1c37d470528bd2a4d699374495c32317baa1891c38"
+    },
+    {
+      "remoteVersion": "20260826145423",
+      "remoteName": "002_secure_identity_devices",
+      "sourceFile": "supabase/migrations/002_secure_identity_devices.sql",
+      "sha256": "8a30f706542c3da16944cc84bc8d9ae775c3373d03c6eaf43842201c35df640e"
+    },
+    {
+      "remoteVersion": "20260826145445",
+      "remoteName": "003_local_hub_authority",
+      "sourceFile": "supabase/migrations/003_local_hub_authority.sql",
+      "sha256": "e998f5e536da04c11fb7a595d494f8a0a2b8d83f48014b06fad636c4a975e98d"
+    },
+    {
+      "remoteVersion": "20260826145448",
+      "remoteName": "004_order_transition_authority",
+      "sourceFile": "supabase/migrations/004_order_transition_authority.sql",
+      "sha256": "3cc92115ae672e5e41e7ca24c635abbebec66daca570425c2f1c393f9334afbe"
+    },
+    {
+      "remoteVersion": "20260826145450",
+      "remoteName": "005_cash_shift_and_capture",
+      "sourceFile": "supabase/migrations/005_cash_shift_and_capture.sql",
+      "sha256": "fa77829d61b46429c7458202104c68f06264c7701487d1637f4ab5ba3b9d4989"
+    },
+    {
+      "remoteVersion": "20260826145501",
+      "remoteName": "006_cash_shift_close",
+      "sourceFile": "supabase/migrations/006_cash_shift_close.sql",
+      "sha256": "e08e8cebf82feb1a8066544a3e54f2218a97da3ec17e20ff572e7579a4440cc2"
+    },
+    {
+      "remoteVersion": "20260826145504",
+      "remoteName": "007_inventory_receipt",
+      "sourceFile": "supabase/migrations/007_inventory_receipt.sql",
+      "sha256": "8f96d7464a9092eed15c846694f31fdc261be39328643128681f8a1498155b31"
+    },
+    {
+      "remoteVersion": "20260826145507",
+      "remoteName": "008_inventory_count_correction",
+      "sourceFile": "supabase/migrations/008_inventory_count_correction.sql",
+      "sha256": "69c3bf7e1b25c88e6eb6c467952c6e0e7055f847ee97167204972bee4d37cd2d"
+    },
+    {
+      "remoteVersion": "20260826145519",
+      "remoteName": "009_inventory_waste",
+      "sourceFile": "supabase/migrations/009_inventory_waste.sql",
+      "sha256": "6d37d2b5e6033204b566d3afe7700cb7bf6bc045e3693875c4db76c510a9b95f"
+    },
+    {
+      "remoteVersion": "20260826145521",
+      "remoteName": "010_device_pairing_and_local_links",
+      "sourceFile": "supabase/migrations/010_device_pairing_and_local_links.sql",
+      "sha256": "516942ec6b9dace04f7ffc927416e4ee20511820639b4e98e88f8f3c3d30e9f1"
+    },
+    {
+      "remoteVersion": "20260826145524",
+      "remoteName": "011_terminal_admission_renewal",
+      "sourceFile": "supabase/migrations/011_terminal_admission_renewal.sql",
+      "sha256": "dc8718abc24ec198688f044321d8ede8be7f58bb76e64280e35925961c31f79d"
+    },
+    {
+      "remoteVersion": "20260826145533",
+      "remoteName": "012_owner_controlled_native_credential_reset",
+      "sourceFile": "supabase/migrations/012_owner_controlled_native_credential_reset.sql",
+      "sha256": "2b1b699150c3e6a8f0adcfa24ff0f90595909179a7c69b8c004d542f9cc5870e"
+    },
+    {
+      "remoteVersion": "20260826150114",
+      "remoteName": "013_production_schema_hardening",
+      "sourceFile": "supabase/migrations/013_production_schema_hardening.sql",
+      "sha256": "6af7383b6c3bba507901eddce3e431a0f6953d4952ade07e9c70ebf5e5419918"
+    }
+  ]
+}
