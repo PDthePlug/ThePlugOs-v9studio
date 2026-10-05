@@ -1,0 +1,11 @@
+import { useState } from "react";
+import { Printer } from "lucide-react";
+import { Badge, Button, Card } from "./ui";
+import type { Order } from "@/lib/types";
+import { formatZar } from "@/lib/money";
+export function OrderHistory({ orders, shopName, branchName }: { orders: Order[]; shopName: string; branchName: string }) {
+  const [receipt, setReceipt] = useState<Order | null>(null);
+  const history = orders.filter(o=>o.status === "COLLECTED" || o.status === "CANCELLED" || o.paymentStatus === "PAID");
+  return <><Card><h2 className="font-display text-2xl">Recent tickets and receipts</h2><p className="mt-1 text-sm text-muted">Recent 7 days. Print a cash receipt for any paid ticket.</p><div className="mt-4 space-y-2">{history.map(o=><div key={o.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-warm p-3"><div><strong className="font-mono">#{o.number} · {formatZar(o.totalCents)}</strong><p className="text-xs text-muted">{o.items.map(i=>`${i.qty}× ${i.name}`).join(", ")}</p></div><div className="flex flex-wrap items-center gap-2"><Badge>{o.status}</Badge>{o.paymentStatus === "PAID" ? <Button variant="secondary" onClick={()=>setReceipt(o)}>Receipt</Button> : null}</div></div>)}{!history.length ? <p className="text-sm text-muted">No paid or completed tickets yet.</p> : null}</div></Card>
+  {receipt ? <Card className="cash-receipt"><h2 className="font-display text-2xl">{shopName}</h2><p>{branchName} · Cash receipt #{receipt.number}</p><p className="text-sm text-muted">{new Date(receipt.createdAt).toLocaleString("en-ZA",{timeZone:"Africa/Johannesburg"})}</p><div className="my-4 space-y-2 border-y border-line py-4">{receipt.items.map(i=><div key={i.id} className="flex justify-between gap-3"><span>{i.qty}× {i.name}</span><span className="font-mono">{formatZar(i.qty*i.priceCents)}</span></div>)}</div><p>Total: <strong>{formatZar(receipt.totalCents)}</strong></p><p>Cash: {formatZar(receipt.tenderedCents ?? receipt.totalCents)}</p><p>Change: {formatZar((receipt.tenderedCents ?? receipt.totalCents)-receipt.totalCents)}</p><div className="receipt-actions mt-4 flex gap-2"><Button onClick={()=>window.print()}><Printer className="h-4 w-4" /> Print</Button><Button variant="ghost" onClick={()=>setReceipt(null)}>Close receipt</Button></div></Card> : null}</>;
+}

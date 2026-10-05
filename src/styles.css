@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #f4f1e8;
+  --color-paper: #fcfaf5;
+  --color-ink: #10120f;
+  --color-ink-soft: #2a2c28;
+  --color-muted: #6f746c;
+  --color-line: #d9d5ca;
+  --color-signal: #c98710;
+  --color-signal-soft: #f4b942;
+  --color-live: #1f8a5b;
+  --color-alert: #c84a3a;
+  --color-warm: #f1eadc;
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-sans: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    font-family: var(--font-display);
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 3px;
+  }
+}
+
+@keyframes plugos-ready {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-live) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+.ticket-ready {
+  animation: plugos-ready 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .cash-receipt, .cash-receipt * { visibility: visible; }
+  .cash-receipt { position: absolute; inset: 0; border: 0; box-shadow: none; width: 100%; }
+  .receipt-actions { display: none; }
+}

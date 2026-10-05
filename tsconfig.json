@@ -1,34 +1,36 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
-    "module": "ESNext",
     "lib": [
       "ES2022",
       "DOM",
       "DOM.Iterable"
     ],
-    "skipLibCheck": true,
+    "module": "ESNext",
     "moduleResolution": "bundler",
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "allowJs": true,
     "jsx": "react-jsx",
+    "strict": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    // `src/lib/db.ts` imports scripts/migration-plan.mjs; checkJs types the
+    // implementation itself instead of a hand-written declaration beside it.
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "types": [
+      "vite/client",
+      "node"
+    ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@plugos/core/*": ["./packages/core/src/*"],
-      "@plugos/core": ["./packages/core/src/index.ts"],
-      "@plugos/types/*": ["./packages/types/src/*"],
-      "@plugos/sdk": ["./packages/sdk/src/index.ts"],
-      "@plugos/react": ["./packages/react/src/index.tsx"],
-      "@plugos/testing": ["./packages/testing/src/index.ts"],
-      "@plugos/cli": ["./packages/cli/src/index.ts"]
+      "@/*": [
+        "./src/*"
+      ]
     },
-    "allowImportingTsExtensions": true,
-    "noEmit": true
+    "allowImportingTsExtensions": true
   },
-  "exclude": [
-    "supabase/functions/**"
+  "include": [
+    "src",
+    "server"
   ]
 }
