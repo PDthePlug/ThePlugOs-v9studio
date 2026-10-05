@@ -1,3 +1,6 @@
+@import "@fontsource-variable/figtree";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource/ibm-plex-mono/500.css";
 @import "tailwindcss";
 
 @theme {
@@ -12,8 +15,8 @@
   --color-live: #1f8a5b;
   --color-alert: #c84a3a;
   --color-warm: #f1eadc;
-  --font-display: "Fraunces", "Times New Roman", serif;
-  --font-sans: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Fraunces Variable", "Times New Roman", serif;
+  --font-sans: "Figtree Variable", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --radius-xs: 4px;
   --radius-sm: 8px;

@@ -91,19 +91,22 @@ function compareAgainstBaseline(verdict) {
 let browser = null;
 try {
   browser = await chromium.launch({
-    ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH, args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-gl=angle", "--use-angle=swiftshader"] } : {}),
+    ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH, args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--no-zygote"] } : {}),
     headless: true,
-    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--no-zygote"],
   });
 
   const viewports = {};
   for (const vp of VIEWPORTS) {
-    const errors = { consoleErrors: [], pageErrors: [] };
+    const errors = { consoleErrors: [], pageErrors: [], externalResourceFailures: [] };
     const page = await browser.newPage({
       viewport: { width: vp.width, height: vp.height },
     });
     page.on("console", (msg) => {
-      if (msg.type() === "error") errors.consoleErrors.push(msg.text());
+      if (msg.type() === "error") {
+        if (msg.location().url === "https://grok.com/grok-app-builder/extensions.js") errors.externalResourceFailures.push({url:msg.location().url,message:msg.text()});
+        else errors.consoleErrors.push(msg.text());
+      }
     });
     page.on("pageerror", (err) => errors.pageErrors.push(String(err?.message || err)));
     // `domcontentloaded`, not `networkidle`: Vite keeps an HMR websocket open, so
@@ -137,6 +140,7 @@ try {
       horizontalOverflow,
       consoleErrors: errors.consoleErrors,
       pageErrors: errors.pageErrors,
+      externalResourceFailures: errors.externalResourceFailures,
       screenshot: vp.screenshot,
     };
   }

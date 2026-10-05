@@ -23,11 +23,17 @@
 
 Seven focused tests use actual PGlite migrations and operational SQL with server-function transport/auth mocked. They cover zero-stock setup/roles/shift requirements, idempotent orders and overselling, cash payment/kitchen/collection/cash-up, cancellation restoration, kitchen redaction/cross-tenant/device binding, PIN lockout/reset, and inventory retry/rollback.
 
-Typecheck, lint, build and actual browser verification are recorded in the release handoff after final execution. Browser QA creates only disposable local records. A local pass is not evidence of production persistence.
+Final validation on 5 October 2026 passed: lint, TypeScript checks, seven operational tests, and the production build. Playwright exercised owner registration/setup, three independently paired stations, staff PINs, stock receipt, a R28 cash sale with R22 change, kitchen preparation, collection, printable receipt, R528 cash-up, owner reports and device revocation. Each dashboard was checked at 1280×900 and 390×844 with no horizontal overflow. The built landing page also passed desktop/mobile smoke checks. First-party browser console and page errors were empty. The required Grok branding script failed to load in the restricted QA network and is recorded separately; fonts are bundled locally.
+
+Browser QA creates only disposable local records using the explicitly enabled preview database. A local pass is not evidence of production persistence. The QA script refuses non-local URLs.
+
+Development and final built-output landing smoke checks also passed at desktop/mobile widths. A separate production-mode check with no DATABASE_URL confirmed the availability notice and disabled owner sign-in. This admin utility retains the platform's default share-card behavior.
 
 ## Deployment blocker
 
 Vercel's existing environment points to Supabase project `iwbbwcaylpulcpvbfkdx`. The connected Supabase account cannot access that project. Vercel has no DATABASE_URL for the browser app. No unrelated project is used as a substitute. Production operational acceptance is blocked pending a dedicated PostgreSQL connection and migration execution.
+
+The Vercel project has been configured for the browser build with Node 24, `npm ci`, and `npm run build`. Production Better Auth secret and canonical URL are configured. The checkpoint deployment received a Vercel failure status linking to the build rate limit; no paid plan change was made. The existing production deployment must not be described as this release until a deployment of the final main commit is READY and production persistence is verified.
 
 ## Remaining capability boundaries
 

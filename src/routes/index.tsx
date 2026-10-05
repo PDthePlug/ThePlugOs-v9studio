@@ -59,7 +59,7 @@ function Home() {
             The whole business, moving as one.
           </h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-ink-soft">
-            Cashier takes the order. Kitchen cooks the queue. Manager keeps cash and stock honest. Owner sees the heartbeat. It keeps working when the network drops.
+            Cashier takes the order. Kitchen cooks the queue. Manager keeps cash and stock honest. Owner sees the heartbeat. Connected stations keep everyone up to date.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <SignInGate
