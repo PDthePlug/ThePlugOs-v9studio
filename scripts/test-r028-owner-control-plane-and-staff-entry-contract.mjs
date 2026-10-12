@@ -48,10 +48,15 @@ assert.equal(
 assert.ok(packageManifest.scripts['test:all'].includes('test:r028-owner-control-plane'), 'The full source gate must run R028.');
 
 // The public site must visibly distinguish owner and staff access, and it may
-// only advertise role experiences that are actually supported by this runtime.
+// only advertise role experiences and owner insights that the runtime/data
+// model actually supports.
 for (const phrase of ['Owner sign in', 'Staff sign in', 'I’m staff', 'Start your shift on your shop device.']) requireText(marketing, phrase);
 for (const role of ["role: 'Cashier'", "role: 'Kitchen'", "role: 'Manager'", "role: 'Owner'"]) requireText(marketing, role);
 assert.ok(!marketing.includes("role: 'Administrator'"), 'Landing must not advertise an unsupported Administrator workspace.');
+requireText(marketing, 'Sales, order status, stock pressure, team and device health become one synchronized owner picture when the cloud is available.');
+requireText(marketing, '<span>Low stock</span><strong>18</strong>');
+assert.ok(!marketing.includes('Avg. prep'), 'Landing must not advertise a preparation-duration metric that the owner data model does not record.');
+assert.ok(!marketing.includes('Sales, pace,'), 'Landing must not promise owner pace analytics without recorded duration evidence.');
 requireText(marketing, 'hasNativeHubHost()');
 requireText(marketing, 'localHubRuntime.openNativeStaffSignIn()');
 requireText(marketing, 'Staff PINs are never entered into the public website or owner portal.');
