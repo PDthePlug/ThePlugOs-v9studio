@@ -7,6 +7,8 @@ import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.util.UUID
 
+private val TERMINAL_ROLES = setOf("CASHIER", "KITCHEN_STAFF", "MANAGER")
+
 data class TerminalCommandIntent(
     val commandId: String,
     val type: String,
@@ -253,7 +255,6 @@ class TerminalStaffSessionCoordinator(
     private companion object {
         const val MAX_PAYLOAD_BYTES = 64 * 1024
         const val MAX_PAYLOAD_BASE64_CHARS = 90 * 1024
-        val TERMINAL_ROLES = setOf("CASHIER", "KITCHEN_STAFF", "MANAGER")
     }
 }
 
