@@ -78,9 +78,9 @@ Before physical installation, independently calculate the APK SHA-256 and compar
 
 ## Deployment evidence boundary
 
-The code-bearing commit `00b79529cb706137d4a7c2deb72760545a377aa1` reached Vercel READY and was assigned the canonical production alias. The later sealed candidate `ce36e6dc…` adds ADR-018, R027 and package test wiring but no application/runtime UI source change after `00b79529…`.
+The code-bearing commit `00b79529cb706137d4a7c2deb72760545a377aa1` reached Vercel READY first and was assigned the canonical production alias. The later sealed candidate `ce36e6dc…` adds ADR-018, R027 and package test wiring but no application/runtime UI source change after `00b79529…`.
 
-The automatic Vercel deployment for `ce36e6dc…` failed before build with `git_info_fail`. A forced redeploy of the same commit was still in `INITIALIZING` with no build events when this evidence was recorded. This platform metadata state is not treated as a frontend failure and is not represented as a successful exact-head deployment. The canonical production runtime remains the already-READY code-bearing frontend.
+The automatic Vercel deployment for `ce36e6dc…` failed before build with `git_info_fail`. A forced redeploy of that exact commit then completed successfully as deployment `dpl_5JPQKDHdZTsiRrD1QjYUDjgniF3B`, reached READY, and received the canonical `theplugos-v9studio.vercel.app` production alias with no alias error. The canonical URL returned HTTP 200 after promotion. GitHub and Vercel are therefore aligned on the sealed `ce36e6dc…` candidate.
 
 ## What this evidence does not prove
 
