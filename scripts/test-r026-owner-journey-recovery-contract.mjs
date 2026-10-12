@@ -79,6 +79,6 @@ assert.ok(!roleGate.includes('type="password"'), 'Role gate must not capture a b
 // Architecture and release truth remain explicit.
 requireText(adr, 'V9 Studio remains canonical.');
 requireText(adr, 'must not collect or verify staff PINs');
-requireText(releaseStatus, 'Status: HOLD');
+requireText(releaseStatus, '**Status:** HOLD');
 
 console.log('R026 owner journey recovery contract passed.');
