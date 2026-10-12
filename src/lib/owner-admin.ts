@@ -105,7 +105,6 @@ export async function createOwnerStaffProfile(
     status: 'ACTIVE',
     active_shift: false,
     performance_score: 100,
-    pin_hash: null,
   }).select('id, name, role, status, branch_id, active_shift, performance_score').single();
   if (error || !data) throw new Error(`The staff profile could not be created: ${error?.message || 'No record returned.'}`);
 
