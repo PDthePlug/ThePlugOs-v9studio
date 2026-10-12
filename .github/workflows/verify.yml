@@ -18,3 +18,22 @@ jobs:
       - run: npm run lint
       - run: npm run test:all
       - run: npm run build
+
+  android-debug:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-36"
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - run: npm run android:assemble:debug
