@@ -90,8 +90,8 @@ requireText(ownerPortal, 'Receipts, counts, corrections and waste remain physica
 
 // Staff profile creation is directory-only; credential activation remains native.
 requireText(ownerAdmin, "const OPERATIONAL_STAFF_ROLES: UserRole[] = ['CASHIER', 'KITCHEN_STAFF', 'MANAGER']");
-requireText(ownerAdmin, 'pin_hash: null');
 requireText(ownerAdmin, "supabase.from('staff_members').insert");
+assert.ok(!ownerAdmin.includes('pin_hash'), 'Owner staff-profile creation must not write the legacy PIN column at all.');
 assert.ok(!ownerAdmin.includes('password'), 'Owner staff-profile creation must not accept a password/PIN credential.');
 requireText(ownerPortal, 'This creates a profile only. It does not create a PIN or operational session.');
 requireText(credentialReset, "action: 'issue-staff-credential-reset-code'");
