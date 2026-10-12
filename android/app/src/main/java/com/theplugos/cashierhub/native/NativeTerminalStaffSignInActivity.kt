@@ -121,6 +121,15 @@ class NativeTerminalStaffSignInActivity : Activity() {
             }
         }
         if (snapshot.state !in setOf(TerminalLocalLinkState.AUTHENTICATED, TerminalLocalLinkState.STAFF_SESSION_ACTIVE)) {
+            // A roster is measured on one authenticated local-link session.
+            // Discard its request state on disconnect so the next HELLO success
+            // fetches a fresh role-filtered directory instead of remaining
+            // disabled behind a stale directoryRequested flag.
+            directoryRequested = false
+            staff = emptyList()
+            adapter.clear()
+            adapter.add("Reconnect to load staff profiles…")
+            adapter.notifyDataSetChanged()
             staffSpinner.isEnabled = false
             pin.isEnabled = false
             signIn.isEnabled = false
