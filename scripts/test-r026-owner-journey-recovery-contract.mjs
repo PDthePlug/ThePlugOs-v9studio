@@ -9,9 +9,10 @@ const requireText = (subject, fragment, message = `Expected source to contain: $
   assert.ok(subject.includes(fragment), message);
 };
 
-const [packageSource, adr, wizard, ownerPortal, roleGate, releaseStatus] = await Promise.all([
+const [packageSource, adr, app, wizard, ownerPortal, roleGate, releaseStatus] = await Promise.all([
   load('package.json'),
   load('docs/architecture/ADR-017_OWNER_JOURNEY_RECOVERY_AND_NATIVE_ONBOARDING_HANDOFF.md'),
+  load('src/App.tsx'),
   load('src/screens/FirstTimeSetupWizard.tsx'),
   load('src/lib/ownerPortal.ts'),
   load('src/components/RoleLoginModal.tsx'),
@@ -45,12 +46,25 @@ for (const merchantCopy of [
   'Connect your main shop device',
   'Team & stations',
   'Menu & stock',
-  'Continue on your Cashier Hub',
+  'Continue setup on your Cashier Hub',
+  'Open owner dashboard',
 ]) requireText(wizard, merchantCopy);
 
 // Reuse the established light merchant setup presentation contract.
 requireText(wizard, 'plug-setup-head');
 requireText(wizard, 'plug-setup-body');
+
+// A pending native setup may be left for the owner cloud dashboard, but this
+// presentation choice must never complete onboarding or unlock trading.
+requireText(wizard, 'onOpenOwnerDashboard?: () => void');
+requireText(wizard, 'Opening it does not complete onboarding or unlock live trading.');
+requireText(app, 'setOwnerSetupPending(setupPending)');
+requireText(app, 'onOpenOwnerDashboard={() => setShowSetupWizard(false)}');
+requireText(app, 'browserSetupPending={ownerSetupPending}');
+requireText(app, 'onResumeSetup={() => setShowSetupWizard(true)}');
+requireText(app, 'Shop setup is still in progress');
+requireText(app, 'Resume setup');
+assert.ok(!app.includes("onboarding_status: 'COMPLETED'"), 'Browser navigation must not synthesize onboarding completion.');
 
 // Browser setup may request bounded enrollment, but cannot regain staff/device authority.
 requireText(wizard, '<NativeHubEnrollmentControl');
