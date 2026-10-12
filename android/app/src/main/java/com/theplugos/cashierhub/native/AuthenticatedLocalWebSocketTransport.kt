@@ -120,6 +120,18 @@ class AuthenticatedLocalWebSocketTransport(
         }
     }
 
+    /**
+     * Non-secret invalidation signal. It carries no staff/session/device facts
+     * and grants no authority; peers must re-request their measured operator
+     * context so a superseded session safe-stops promptly.
+     */
+    fun broadcastAuthorityChanged() {
+        val message = JSONObject().put("type", "AUTHORITY_CHANGED").toString()
+        authenticatedDevices.keys.forEach { connection ->
+            if (connection.isOpen) connection.send(message)
+        }
+    }
+
     private fun handleMessage(connection: WebSocket, rawMessage: String) {
         val message = try {
             JSONObject(rawMessage)
