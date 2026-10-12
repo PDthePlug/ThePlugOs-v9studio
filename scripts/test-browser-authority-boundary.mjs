@@ -18,9 +18,11 @@ async function sourceFiles(directory) {
 
 const activeEntryModules = [
   'src/App.tsx',
+  'src/screens/MarketingLanding.tsx',
   'src/screens/FirstTimeSetupWizard.tsx',
   'src/components/NativeHubEnrollmentControl.tsx',
   'src/components/RoleLoginModal.tsx',
+  'src/components/OwnerPortalShell.tsx',
   'src/workspaces/NativeCashierStation.tsx',
   'src/workspaces/NativeKitchenStation.tsx',
   'src/workspaces/NativeManagerStation.tsx',
@@ -42,11 +44,30 @@ const app = activeSources.find(([path]) => path === 'src/App.tsx')?.[1] || '';
 assert.match(app, /await localHubRuntime\.boot\(\)/, 'The application entry point must boot only the native Hub bridge.');
 assert.match(app, /localHubRuntime\.subscribe/, 'The application entry point must subscribe to measured native Hub state.');
 
+const ownerAdminPathSuffix = '/src/lib/owner-admin.ts';
 for (const [path, source] of allSources) {
+  if (path.endsWith(ownerAdminPathSuffix)) continue;
   assert.ok(
     !/\.(?:insert|upsert|update|delete)\s*\(/.test(source),
-    `${path} contains a browser-side mutation call; operational and master-data writes require an accepted authority command.`,
+    `${path} contains a browser-side mutation call outside the reviewed owner control-plane module.`,
   );
+}
+
+// ADR-019 creates one deliberately narrow browser write module. It may mutate
+// owner-control-plane catalog metadata and create credential-free staff
+// directory records under RLS; it may not become an operational write escape.
+const ownerAdmin = allSources.find(([path]) => path.endsWith(ownerAdminPathSuffix))?.[1] || '';
+assert.ok(ownerAdmin, 'The reviewed owner control-plane mutation module must exist.');
+assert.ok(ownerAdmin.includes("supabase.from('catalog_products').insert"), 'Owner control plane may create catalog metadata.');
+assert.ok(ownerAdmin.includes("supabase.from('catalog_products').update"), 'Owner control plane may edit/archive catalog metadata.');
+assert.ok(ownerAdmin.includes("supabase.from('staff_members').insert"), 'Owner control plane may create a credential-free staff directory profile.');
+assert.ok(!ownerAdmin.includes("supabase.from('staff_members').update"), 'Direct browser staff updates remain forbidden until revocation-safe authority exists.');
+assert.ok(!/\.(?:upsert|delete)\s*\(/.test(ownerAdmin), 'Owner control-plane module must not widen itself to upsert/delete authority.');
+for (const forbiddenTable of ['orders', 'cash_shifts', 'payments', 'stock_movements', 'devices', 'staff_credentials', 'staff_security_sessions', 'terminal_staff_sessions']) {
+  assert.ok(!ownerAdmin.includes(`from('${forbiddenTable}')`), `Owner control-plane module must not mutate operational table ${forbiddenTable}.`);
+}
+for (const forbiddenField of ['stock_quantity:', 'pin_hash:', 'session_token', 'device_private_key']) {
+  assert.ok(!ownerAdmin.includes(forbiddenField), `Owner control-plane module must not write sensitive/operational field ${forbiddenField}.`);
 }
 
 const rpcNames = [];
@@ -56,7 +77,7 @@ for (const [, source] of allSources) {
   for (const match of source.matchAll(/\.functions\.invoke\(\s*['\"]([^'\"]+)['\"]/g)) functionNames.push(match[1]);
 }
 assert.deepEqual([...new Set(rpcNames)].sort(), ['create_business_with_owner_and_branch'], 'Only the R001 atomic business foundation RPC is available to the browser.');
-assert.deepEqual([...new Set(functionNames)].sort(), ['hub-owner-enrollment'], 'Only the owner pairing-code endpoint is available to the browser.');
+assert.deepEqual([...new Set(functionNames)].sort(), ['hub-owner-enrollment'], 'Only the bounded owner enrollment/credential endpoint is available to the browser.');
 
 const server = await readFile(resolve(root, 'server.ts'), 'utf8');
 assert.match(server, /RETIRED_OPERATIONAL_ENDPOINTS/, 'The web process must enumerate retired operational endpoints.');
