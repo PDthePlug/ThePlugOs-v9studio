@@ -33,7 +33,7 @@ const movements = [
   { number: '01', icon: ShoppingBag, title: 'The sale begins the story.', copy: 'Capture the order in seconds, take payment and send the right work to the right station.' },
   { number: '02', icon: ChefHat, title: 'The team sees what moves next.', copy: 'Kitchen and fulfilment queues update as the order progresses—without shouting across the shop.' },
   { number: '03', icon: Boxes, title: 'Stock follows the truth.', copy: 'Every completed movement becomes a reliable stock signal and an early warning before service stops.' },
-  { number: '04', icon: BarChart3, title: 'The owner sees the business.', copy: 'Sales, pace, exceptions and branch health become one live operational picture from anywhere.' },
+  { number: '04', icon: BarChart3, title: 'The owner sees the business.', copy: 'Sales, order status, stock pressure, team and device health become one synchronized owner picture when the cloud is available.' },
 ];
 
 const roles = [
@@ -103,13 +103,13 @@ export const MarketingLanding: React.FC<MarketingLandingProps> = ({ onSignIn, on
             <article className="plug-heartbeat-card">
               <header className="plug-heartbeat-header"><div><span className="plug-micro-label">Business heartbeat</span><h2>Soweto Central</h2></div><span className="plug-status-pill"><span /> Illustrative preview</span></header>
               <div className="plug-metric-row">
-                <div className="plug-metric plug-metric-primary"><span>Today&apos;s sales</span><strong>R 8,460</strong><small>↑ 12% from last Tuesday</small></div>
-                <div className="plug-metric"><span>Orders</span><strong>86</strong><small>R98 average</small></div>
-                <div className="plug-metric"><span>Avg. prep</span><strong>06:42</strong><small>Inside target</small></div>
+                <div className="plug-metric plug-metric-primary"><span>Today&apos;s sales</span><strong>R 8,460</strong><small>Captured order value</small></div>
+                <div className="plug-metric"><span>Orders</span><strong>86</strong><small>Current trading day</small></div>
+                <div className="plug-metric"><span>Low stock</span><strong>18</strong><small>Needs attention</small></div>
               </div>
               <div className="plug-flow-head"><div><span className="plug-micro-label">Illustrative order flow</span><strong>3 example movements</strong></div><span className="plug-local-note">Cloud queued: 4</span></div>
               <div className="plug-order-flow">{orderFlow.map(order => <div className="plug-flow-row" key={order.id}><span className={`plug-flow-signal ${order.tone}`} aria-hidden="true" /><strong>{order.id}</strong><span>{order.item}</span><em className={`plug-flow-state ${order.tone}`}>{order.state}</em></div>)}</div>
-              <footer className="plug-heartbeat-footer"><span><b>4</b> devices connected</span><span><b>18</b> items in stock alert</span><span className="plug-pulse-label">Local engine healthy</span></footer>
+              <footer className="plug-heartbeat-footer"><span><b>4</b> devices connected</span><span><b>3</b> active team members</span><span className="plug-pulse-label">Local engine healthy</span></footer>
             </article>
             <aside className="plug-floating-note plug-note-orders"><span className="plug-note-icon"><CircleCheck aria-hidden="true" /></span><span><small>Order #1841</small><strong>Ready for counter</strong></span></aside>
             <aside className="plug-floating-note plug-note-stock"><span className="plug-note-icon alert"><PackageCheck aria-hidden="true" /></span><span><small>Stock signal</small><strong>Russian rolls · 18 left</strong></span></aside>
