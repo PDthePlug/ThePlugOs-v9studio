@@ -19,6 +19,51 @@ jobs:
       - run: npm run test:all
       - run: npm run build
 
+  journey-visual:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+          cache: npm
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Install Chromium for journey renderer
+        run: npx playwright install --with-deps chromium
+      - name: Start local fixture web app
+        shell: bash
+        env:
+          VITE_OWNER_PORTAL_ORIGIN: http://127.0.0.1:8082
+          VITE_SUPABASE_URL: https://renderer.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_renderer_fixture
+        run: |
+          nohup npx vite --host 127.0.0.1 --port 8082 > journey-vite.log 2>&1 &
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:8082/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat journey-vite.log
+          exit 1
+      - name: Render complete customer journey
+        env:
+          QA_URL: http://127.0.0.1:8082
+          QA_SCREENSHOT_DIR: artifacts/customer-journey
+        run: node scripts/qa-customer-journey-renderer.mjs
+      - name: Upload customer journey evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: theplugos-customer-journey-${{ github.sha }}
+          path: |
+            artifacts/customer-journey
+            journey-vite.log
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
+
   android-debug:
     needs: verify
     runs-on: ubuntu-latest
