@@ -37,6 +37,10 @@ export const RoleLoginModal: React.FC<RoleLoginModalProps> = ({
   onSignOut,
 }) => {
   const nativeHost = hasNativeHubHost();
+  // Keep inactive branches out of the owner control plane before any device
+  // pairing or access control is rendered. OwnerPortalShell repeats this filter
+  // defensively when it builds its branch selector.
+  const ownerBranches = branches.filter((branch) => branch.isActive);
   const [message, setMessage] = useState<string | null>(null);
   const [openingSignIn, setOpeningSignIn] = useState(false);
   const awaitingNativeReturn = useRef(false);
@@ -116,7 +120,7 @@ export const RoleLoginModal: React.FC<RoleLoginModalProps> = ({
     return (
       <OwnerPortalShell
         businessId={businessId}
-        branches={branches}
+        branches={ownerBranches}
         branchId={branchId}
         staffList={staffList}
         onSelectBranch={onSelectBranch}
