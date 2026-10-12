@@ -1,8 +1,8 @@
 # PASS 4 — Owner control plane and staff-entry hardening evidence
 
 - **Date:** 12 October 2026
-- **Runtime/package candidate:** `286e7c3a86504961a2f4feba0966d0a05b1d85c8`
-- **GitHub Actions run:** `38307178701`
+- **Runtime/package candidate:** `3ab4ed04528713d32b33bc1e3f0091398bf51a13`
+- **GitHub Actions run:** `38307761868`
 - **Overall release status:** **HOLD** — this evidence closes the source/frontend/native-build slice only
 - **Architecture:** ADR-019
 - **Regression gates:** R028 owner control plane/public staff entry; R029 owner-control-plane RLS hardening
@@ -29,6 +29,8 @@ The owner control plane is separated into seven real areas:
 7. Devices & settings
 
 The public landing page now advertises only role experiences implemented by the hardened runtime: **Cashier, Kitchen, Manager, and Owner**. The unsupported Administrator marketing card was removed rather than representing an unavailable workspace as product capability.
+
+The landing-page insight preview was also reconciled with the current owner data model. Unsupported **average preparation / pace** analytics were removed because the synchronized owner projection does not yet contain historical preparation-duration evidence. The owner promise now maps to facts the product actually surfaces: sales, order status, stock pressure, team, and device health.
 
 ## Owner capabilities verified in source/fixture journey
 
@@ -95,9 +97,9 @@ The journey completed successfully and retained the no-horizontal-page-overflow 
 
 | Evidence | Value |
 | --- | --- |
-| Journey artifact ID | `11773098330` |
-| Artifact name | `theplugos-customer-journey-286e7c3a86504961a2f4feba0966d0a05b1d85c8` |
-| Artifact archive SHA-256 | `7f779cf6e8adfffd30ed3cea9ab978bba73901cac1dedef5bede292e59ea5258` |
+| Journey artifact ID | `11773361352` |
+| Artifact name | `theplugos-customer-journey-3ab4ed04528713d32b33bc1e3f0091398bf51a13` |
+| Artifact archive SHA-256 | `c4b7527720b9ca4d964278161a02400c2eb09ed710ad0159bc4b724125a74563` |
 | Result | PASS |
 
 ## Android package evidence
@@ -106,21 +108,21 @@ The same candidate completed the CI Android debug-host assembly, checksum genera
 
 | Evidence | Value |
 | --- | --- |
-| Android artifact ID | `11773610032` |
-| Artifact name | `theplugos-android-debug-286e7c3a86504961a2f4feba0966d0a05b1d85c8` |
-| Artifact archive SHA-256 | `742f3a56a57a77c3f63b65398a1fd96632d38106b9de388d007cbfb5c58f5347` |
-| `app-debug.apk` SHA-256 | `0eda145eba27be9c5b0493abf792879419033480977371e141d59b6a74162581` |
+| Android artifact ID | `11772644528` |
+| Artifact name | `theplugos-android-debug-3ab4ed04528713d32b33bc1e3f0091398bf51a13` |
+| Artifact archive SHA-256 | `602b87b05af58946244d6375a86c39fcc8f821cf083e22a4033a81e6cb5d00d3` |
+| `app-debug.apk` SHA-256 | `031c0b693eb2198c80dd3e7d31107e19768d1d640ed70d9d89ba2d779ffd883e` |
 | Result | Android `:app:assembleDebug` PASS; checksum PASS; upload PASS |
 
 The downloaded APK was independently hashed after artifact extraction and matched the CI sidecar exactly.
 
-**This package supersedes the earlier PASS2/PASS3 APK candidates for any future physical acceptance run.** The acceptance protocol itself remains `docs/testing/PHYSICAL_MULTI_DEVICE_TERMINAL_ACCEPTANCE.md`; its test requirements are unchanged.
+**This package supersedes the earlier PASS2/PASS3 and interim PASS4 APK candidates for any future physical acceptance run.** The acceptance protocol itself remains `docs/testing/PHYSICAL_MULTI_DEVICE_TERMINAL_ACCEPTANCE.md`; its test requirements are unchanged.
 
 ## Vercel production evidence
 
 The same runtime head reached Vercel production successfully:
 
-- deployment: `dpl_CqrfkKuxZpWGKBxjpPtjQkPDk66n`
+- deployment: `dpl_CVH6JqCcwz8MR9T3QUTDvKUJUgSw`
 - target: production
 - state: READY
 - canonical alias: `theplugos-v9studio.vercel.app`
