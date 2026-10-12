@@ -26,6 +26,11 @@ const OperatorMark = () => (
  * The browser receives the owner control plane. Staff PIN capture and role
  * routing remain native and enter React only after a verified operator context
  * exists on an enrolled Android host.
+ *
+ * OwnerPortalShell owns the sectioned control plane, including
+ * NativeStaffCredentialResetControl inside Team & access. Keeping that control
+ * out of this routing boundary prevents the entry component becoming the old
+ * all-in-one owner page again.
  */
 export const RoleLoginModal: React.FC<RoleLoginModalProps> = ({
   staffList = [],
