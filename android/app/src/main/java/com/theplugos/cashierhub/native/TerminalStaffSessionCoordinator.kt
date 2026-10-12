@@ -145,9 +145,17 @@ class TerminalStaffSessionCoordinator(
                 keys.clearStaffSession()
                 null
             } else {
+                val pending = serialized.pendingCommand?.also { intent ->
+                    if (intent.deviceId != verified.terminalDeviceId ||
+                        intent.staffSessionId != verified.sessionId ||
+                        intent.sequence != serialized.lastAllocatedSequence
+                    ) {
+                        throw HubCommandRejectedException("The persisted terminal command is not bound to the verified staff session.")
+                    }
+                }
                 verified.copy(
                     lastAllocatedSequence = serialized.lastAllocatedSequence,
-                    pendingCommand = serialized.pendingCommand,
+                    pendingCommand = pending,
                 )
             }
         } catch (_: Exception) {
