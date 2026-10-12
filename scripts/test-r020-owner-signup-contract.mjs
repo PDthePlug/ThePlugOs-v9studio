@@ -70,13 +70,29 @@ assert.ok(!welcomeScreen.includes('recoveryRedirectUrl'), 'Signup may not reuse 
 assert.ok(
   welcomeScreen.indexOf('if (!owner.email_confirmed_at)')
     < welcomeScreen.indexOf("supabase.rpc('create_business_with_owner_and_branch'"),
-  'The browser must reject an unconfirmed account before the R001 foundation RPC.',
+  'The browser must reject an unconfirmed account before the business-foundation RPC.',
 );
 assert.ok(
   welcomeScreen.indexOf("ownerAuthRedirectUrl('SIGNUP_CONFIRMATION')")
     < welcomeScreen.indexOf('supabase.auth.signUp'),
   'Signup must compute the dedicated confirmation redirect before requesting Auth.',
 );
+
+// A first-time visitor has no Auth session. That must be a normal signup state,
+// not an error path. Reuse of an existing session is stricter: verify it with
+// getUser() before allowing it to create a business.
+requireText(welcomeScreen, 'const { data: sessionData } = await supabase.auth.getSession();');
+requireText(welcomeScreen, 'if (authenticatedOwnerId || sessionData.session?.user)');
+requireText(welcomeScreen, 'const { data: currentUserData, error: currentUserError } = await supabase.auth.getUser();');
+const sessionProbeIndex = welcomeScreen.indexOf('const { data: sessionData } = await supabase.auth.getSession();');
+const verifiedUserIndex = welcomeScreen.indexOf('const { data: currentUserData, error: currentUserError } = await supabase.auth.getUser();');
+const signupIndex = welcomeScreen.indexOf('supabase.auth.signUp');
+assert.ok(sessionProbeIndex >= 0 && verifiedUserIndex > sessionProbeIndex && signupIndex > verifiedUserIndex,
+  'Signup must first distinguish an absent session, verify only an existing session, and then allow a new visitor to sign up.');
+const guardIndex = welcomeScreen.indexOf('if (authenticatedOwnerId || sessionData.session?.user)');
+assert.ok(guardIndex >= 0 && guardIndex < verifiedUserIndex,
+  'getUser() must remain inside the existing-session guard so AuthSessionMissingError cannot block first signup.');
+
 requireText(appSource, "event === 'SIGNED_IN' && session?.user && !recoveryMode");
 requireText(appSource, 'void acceptOwnerIdentity({ ownerId: session.user.id });');
 requireText(appSource, 'reconciledOwnerIdRef');
