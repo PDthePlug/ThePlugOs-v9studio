@@ -90,6 +90,96 @@ html, body {
   padding-bottom: 0 !important;
 }
 
+/* Owner control plane: do not make phone users discover hidden sections by
+   swiping a horizontal rail. All seven areas stay visible as a compact grid.
+   The desktop sidebar remains unchanged. */
+@media (max-width: 639px) {
+  nav[aria-label="Owner workspace"] {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem !important;
+    overflow: visible !important;
+    padding: 0 1rem 1rem !important;
+  }
+
+  nav[aria-label="Owner workspace"] > button {
+    width: 100% !important;
+    min-width: 0 !important;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  nav[aria-label="Owner workspace"] > button:last-child {
+    grid-column: 1 / -1;
+  }
+
+  /* The Orders desktop table becomes a labeled card list on phones. This
+     keeps every field visible without horizontal panning while preserving the
+     semantic table and full desktop presentation at larger widths. */
+  body:has(nav[aria-label="Owner workspace"]) table {
+    display: block;
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  body:has(nav[aria-label="Owner workspace"]) table thead {
+    display: none;
+  }
+
+  body:has(nav[aria-label="Owner workspace"]) table tbody {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  body:has(nav[aria-label="Owner workspace"]) table tbody tr {
+    display: block;
+    overflow: hidden;
+    border: 1px solid #eee6da;
+    border-radius: 1rem;
+    background: #fffdf8;
+  }
+
+  body:has(nav[aria-label="Owner workspace"]) table tbody td {
+    display: grid;
+    grid-template-columns: minmax(5.25rem, 0.42fr) minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.65rem 0.9rem !important;
+    text-align: left !important;
+    border-bottom: 1px solid #f1eadf;
+    overflow-wrap: anywhere;
+  }
+
+  body:has(nav[aria-label="Owner workspace"]) table tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  body:has(nav[aria-label="Owner workspace"]) table tbody td::before {
+    color: #8b8378;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  body:has(nav[aria-label="Owner workspace"]) table tbody td:nth-child(1)::before { content: "Order"; }
+  body:has(nav[aria-label="Owner workspace"]) table tbody td:nth-child(2)::before { content: "Cashier"; }
+  body:has(nav[aria-label="Owner workspace"]) table tbody td:nth-child(3)::before { content: "Status"; }
+  body:has(nav[aria-label="Owner workspace"]) table tbody td:nth-child(4)::before { content: "Payment"; }
+  body:has(nav[aria-label="Owner workspace"]) table tbody td:nth-child(5)::before { content: "Time"; }
+  body:has(nav[aria-label="Owner workspace"]) table tbody td:nth-child(6)::before { content: "Total"; }
+
+  body:has(nav[aria-label="Owner workspace"]) table tbody td[colspan] {
+    display: block;
+    text-align: center !important;
+  }
+
+  body:has(nav[aria-label="Owner workspace"]) table tbody td[colspan]::before {
+    content: none;
+  }
+}
+
 /* Thermal Printer Styling */
 @media print {
   body {
