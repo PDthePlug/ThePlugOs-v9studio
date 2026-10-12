@@ -72,6 +72,8 @@ const releaseCommit = process.env.THEPLUGOS_RELEASE_COMMIT;
 if (!releaseCommit) fail('THEPLUGOS_RELEASE_COMMIT is required.');
 const checkedCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 if (releaseCommit !== checkedCommit) fail('THEPLUGOS_RELEASE_COMMIT does not match the checked-out source commit.');
+const dirtySource = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim();
+if (dirtySource) fail('The source tree is not clean; refusing to apply unreviewed migration contents.');
 const confirmation = process.env.THEPLUGOS_STAGING_SCHEMA_CONFIRM;
 const expectedConfirmation = `apply-empty-staging:${projectRef}:${checkedCommit}:001-015`;
 if (confirmation !== expectedConfirmation) {
@@ -95,7 +97,7 @@ try {
       to_regclass('public.hub_terminal_staff_session_challenges')::text as terminal_staff_challenges
   `);
   if (Object.values(preflight.rows[0]).some(Boolean)) {
-    fail('STAGING_TARGET_NOT_EMPTY: canonical ThePlugOS objects already exist; restore or create a fresh staging target instead of replaying migrations.', 78);
+    throw Object.assign(new Error('STAGING_TARGET_NOT_EMPTY: canonical ThePlugOS objects already exist; restore or create a fresh staging target instead of replaying migrations.'), { exitCode: 78 });
   }
 
   for (const migration of orderedMigrations) {
@@ -144,6 +146,10 @@ try {
     appliedMigrations: orderedMigrations,
     verified: verification.rows[0],
   }, null, 2));
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message);
+  process.exitCode = Number.isInteger(error?.exitCode) ? error.exitCode : 1;
 } finally {
   await client.end().catch(() => {});
 }
