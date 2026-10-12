@@ -21,6 +21,7 @@ const [
   browserSecurity,
   ownerEnrollmentControl,
   roleLoginModal,
+  ownerPortal,
   serverSource,
   certificationReadme,
   certificationEntries,
@@ -30,6 +31,7 @@ const [
   load('src/lib/security.ts'),
   load('src/components/NativeHubEnrollmentControl.tsx'),
   load('src/components/RoleLoginModal.tsx'),
+  load('src/components/OwnerPortalShell.tsx'),
   load('server.ts'),
   load('docs/certification/README.md'),
   readdir(resolve(root, 'docs/certification'), { withFileTypes: true }),
@@ -51,7 +53,9 @@ for (const fragment of [
 assert.ok(!browserSecurity.includes("from '../lib/supabase'"), 'Retired browser security must not import a Supabase client.');
 assert.ok(browserSecurity.includes('Browser security operations are retired.'), 'Browser security compatibility calls must fail closed.');
 assert.ok(ownerEnrollmentControl.includes("supabase.functions.invoke('hub-owner-enrollment'"), 'The owner portal must use the bounded owner-enrollment Function.');
-assert.ok(roleLoginModal.includes('NativeHubEnrollmentControl'), 'The live browser pairing entry must present only the native-enrollment control.');
+assert.ok(roleLoginModal.includes('<OwnerPortalShell'), 'The browser entry boundary must delegate owner controls to the owner portal.');
+assert.ok(ownerPortal.includes('NativeHubEnrollmentControl'), 'The live Devices & settings section must present the native-enrollment control.');
+assert.ok(!ownerPortal.includes('DevicePairingWizard'), 'The owner portal must not restore the retired browser pairing wizard.');
 assert.ok(serverSource.includes('Device pairing, local-hub discovery, and operational writes are not served by this web process.'), 'The Express process must not become a competing local Hub.');
 
 assert.match(releaseStatus, /\*\*Status:\*\* HOLD/, 'Legacy cleanup must not change the HOLD release boundary.');
