@@ -8,7 +8,9 @@
   terminal enrollment/revocation, R011 renewal, R012 native credential recovery,
   R013 schema hardening, ADR-007 modern Edge API-key resolution, ADR-008
   production migration-ledger safeguards, ADR-012/R022 role-experience
-  restoration, and ADR-013/R023 merchant operational surfaces
+  restoration, ADR-013/R023 merchant operational surfaces, ADR-015/R024
+  cross-device session conflict hardening, ADR-016/R025 terminal authority
+  safe-stop/revalidation, and a clean CI Android debug-host assembly
 - **Production mutation authority:** narrowly authorized for the exact
   R001A→R012 controlled remediation sequence in
   `docs/evidence/CONTROLLED_PRODUCTION_REMEDIATION_2026-08-26.md`; that
@@ -86,9 +88,9 @@ Cashier, Kitchen, and Manager station surfaces: Cashier follows build order →
 take payment → hand over; Kitchen follows waiting → preparing → ready; Manager
 sees cash control, order exceptions, and counted-stock tasks. The same native
 operator-context, command-request, exact-retry, and native-confirmed-abandonment
-boundaries remain in force. This is source-level UX evidence only, not an
-Android build, physical station, multi-device, cloud-acknowledgement, payment
-settlement, or production-release result.
+boundaries remain in force. The source and native host now have a clean CI
+build result, but this is not a physical station, multi-device,
+cloud-acknowledgement, payment-settlement, or production-release result.
 
 The source now contains an owner-only device-pairing control, terminal
 admission/revocation and renewal contracts, and a native terminal local-link
@@ -98,12 +100,16 @@ the terminal key against the Hub's fresh nonce. ADR-010/R014 define a native
 PIN/session and signed-command path. ADR-011/R018 adds a native,
 role-minimized Cashier, Kitchen, and Manager terminal workspace over that
 authenticated link; it derives task data from the Hub and submits only the
-already-authorized signed commands. R014 and its Edge receiver are not
-deployed to the recorded R001A–R013 production baseline. No staging project,
-Function deployment, Android build, radio connection, certificate handshake,
-or multi-device result has been recorded. A terminal therefore remains
-non-operational in live production until those exact schema, Function, and
-physical evidence gates are complete.
+already-authorized signed commands. ADR-015/R024 and ADR-016/R025 harden
+same-staff cross-device conflicts, role/session drift, restart binding, stale
+authority safe-stop, and reconnect revalidation. R014 and its Edge receiver are
+not deployed to the recorded R001A–R013 production baseline. A clean CI Android
+`:app:assembleDebug` is recorded in
+`docs/evidence/PASS_2_ROLE_SESSION_CONFLICT_HARDENING_2026-10-12.md`, but no
+staging acceptance, physical Android execution, radio connection, certificate
+handshake, or multi-device result has been recorded. A terminal therefore
+remains non-operational in live production until those exact schema, Function,
+and physical evidence gates are complete.
 
 ADR-012/R019 hardens source-only cloud batch acknowledgement handling: each
 receiver acknowledgement is bound to its own contiguous action-family group,
