@@ -13,6 +13,7 @@ const [
   packageSource,
   app,
   roleGate,
+  ownerPortal,
   nativeStaffSignIn,
   terminalEnrollment,
   terminalStaffSignIn,
@@ -24,6 +25,7 @@ const [
   load('package.json'),
   load('src/App.tsx'),
   load('src/components/RoleLoginModal.tsx'),
+  load('src/components/OwnerPortalShell.tsx'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeStaffSignInActivity.kt'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalEnrollmentActivity.kt'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalStaffSignInActivity.kt'),
@@ -44,10 +46,11 @@ assert.ok(packageManifest.scripts['test:all'].includes('test:r022-role-experienc
 // The old merchant role experience is restored without restoring browser PIN authority.
 requireText(roleGate, 'Who’s working this station?');
 requireText(roleGate, 'Choose profile & enter PIN');
-requireText(roleGate, 'Owner dashboard');
-requireText(roleGate, 'Business heartbeat');
-requireText(roleGate, 'NativeHubEnrollmentControl');
-requireText(roleGate, 'NativeStaffCredentialResetControl');
+requireText(roleGate, '<OwnerPortalShell');
+requireText(ownerPortal, 'Owner dashboard');
+requireText(ownerPortal, 'Business overview');
+requireText(ownerPortal, 'NativeHubEnrollmentControl');
+requireText(ownerPortal, 'NativeStaffCredentialResetControl');
 requireText(roleGate, 'hasNativeHubHost');
 requireText(roleGate, 'localHubRuntime.openNativeStaffSignIn()');
 requireText(roleGate, 'localHubRuntime.getNativeOperatorContext()');
@@ -56,7 +59,7 @@ assert.ok(!roleGate.includes('verifyStaffPin'), 'React must not regain PIN verif
 assert.ok(!roleGate.includes('pinInput'), 'React must not hold a staff PIN input model.');
 assert.ok(!roleGate.includes('type="password"'), 'The browser role gate must not capture a staff PIN.');
 for (const mutation of ['.insert(', '.upsert(', '.update(', '.delete(', '.rpc(']) {
-  assert.ok(!roleGate.includes(mutation), `The owner role surface must remain free of direct operational mutation: ${mutation}`);
+  assert.ok(!roleGate.includes(mutation), `The role-routing boundary must remain free of direct operational mutation: ${mutation}`);
 }
 
 // The Hub-device PIN remains native and successful verification returns control to role routing.
