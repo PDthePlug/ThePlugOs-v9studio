@@ -31,7 +31,7 @@ describe('WelcomeScreen owner account signup', () => {
     vi.stubEnv('VITE_OWNER_PORTAL_ORIGIN', '');
     render(<WelcomeScreen onLoginSuccess={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open ThePlugOS' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Owner sign in', exact: true })[0]);
 
     expect(screen.getByRole('alert').textContent).toContain('Owner access is not configured for this portal yet.');
     expect(screen.queryByLabelText('Email address')).toBeNull();
