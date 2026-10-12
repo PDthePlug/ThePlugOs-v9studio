@@ -9,7 +9,7 @@ export interface OwnerAccessIdentity {
   preferredBusinessId?: string;
 }
 
-/** Resolved only after App verifies the selected R001 owner business. */
+/** Resolved only after App verifies the selected owner business. */
 export interface BusinessAuthSession {
   businessId: string;
   businessName: string;
@@ -26,7 +26,7 @@ interface WelcomeScreenProps {
   onLoginSuccess: (identity: OwnerAccessIdentity) => void | Promise<void>;
   /** A same-origin presentation marker; Supabase still validates the recovery session. */
   recoveryMode?: boolean;
-  /** Set only after App has verified that the current Auth user has no R001 owner business. */
+  /** Set only after App has verified that the current Auth user has no owner business. */
   authenticatedOwnerId?: string | null;
   onRecoveryComplete?: () => void | Promise<void>;
 }
@@ -101,7 +101,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     setAccessOpen(true);
     setView('CREATE');
     setError(null);
-    setNotice('Your owner account is confirmed. Create the R001 business foundation to continue.');
+    setNotice('Your owner account is confirmed. Add your business and first branch to continue.');
   }, [authenticatedOwnerId, recoveryMode]);
 
   useEffect(() => {
@@ -257,12 +257,19 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     setError(null);
     setNotice(null);
     try {
-      const { data: currentUserData, error: currentUserError } = await supabase.auth.getUser();
-      if (currentUserError) throw new Error('Session lookup failed.');
-      let owner = currentUserData.user;
+      // A new visitor has no Auth session yet, so getUser() would correctly
+      // return AuthSessionMissingError. Only make the server-verified getUser
+      // call when a session is expected; otherwise continue to signUp().
+      let owner = null;
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (authenticatedOwnerId || sessionData.session?.user) {
+        const { data: currentUserData, error: currentUserError } = await supabase.auth.getUser();
+        if (currentUserError) throw new Error('Session lookup failed.');
+        owner = currentUserData.user;
+      }
 
       if (authenticatedOwnerId && (!owner || owner.id !== authenticatedOwnerId)) {
-        throw new OwnerAccessFlowError('Your owner session has expired. Sign in again before creating the business foundation.');
+        throw new OwnerAccessFlowError('Your owner session has expired. Sign in again before creating your business.');
       }
 
       if (owner) {
@@ -287,7 +294,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           setPassword('');
           setConfirmPassword('');
           setView('LOGIN');
-          setNotice('Confirm your email, then sign in and create the business foundation. No business data was created yet.');
+          setNotice('Confirm your email, then sign in to finish setting up your business. No business data was created yet.');
           return;
         }
         owner = registration.user;
@@ -297,7 +304,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         setPassword('');
         setConfirmPassword('');
         setView('LOGIN');
-        setNotice('Confirm your email, then sign in and create the business foundation. No business data was created yet.');
+        setNotice('Confirm your email, then sign in to finish setting up your business. No business data was created yet.');
         return;
       }
 
@@ -321,7 +328,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     } catch (reason) {
       setError(reason instanceof OwnerAccessFlowError
         ? reason.message
-        : 'We could not create the business foundation. No browser operational workspace was opened. Review the details and try again.');
+        : 'We could not create your business just now. Review the details and try again.');
     } finally {
       setLoading(false);
     }
@@ -427,8 +434,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                 <form onSubmit={handleCreateBusiness} className="space-y-4">
                   <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
                     {authenticatedOwnerId
-                      ? 'This creates only the R001 business and first-branch foundation. Native onboarding is still required before the business can trade.'
-                      : 'Create your owner account first. After you confirm your email and sign in, you can create the R001 business and first-branch foundation. Native onboarding is still required before the business can trade.'}
+                      ? 'Your owner account is ready. Add your business and first branch, then continue to shop setup.'
+                      : 'Create your owner account and tell us about your first shop. If email confirmation is required, we will ask you to confirm before business setup continues.'}
                   </p>
                   <div className="space-y-1.5"><label htmlFor="plug-create-business" className="text-xs font-bold text-slate-400">Business name</label><div className="relative"><Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" /><input id="plug-create-business" type="text" required value={businessName} onChange={(event) => setBusinessName(event.target.value)} className="w-full rounded-xl border border-slate-800 bg-slate-950 py-3 pl-10 pr-4 text-sm text-white focus:border-amber-500 focus:outline-none" placeholder="e.g. Nomsa's Takeaway" /></div></div>
                   <div className="space-y-1.5"><label htmlFor="plug-create-branch" className="text-xs font-bold text-slate-400">First branch name</label><div className="relative"><Store className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" /><input id="plug-create-branch" type="text" required value={branchName} onChange={(event) => setBranchName(event.target.value)} className="w-full rounded-xl border border-slate-800 bg-slate-950 py-3 pl-10 pr-4 text-sm text-white focus:border-amber-500 focus:outline-none" placeholder="e.g. Cresta Branch" /></div></div>
@@ -437,7 +444,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     <div className="space-y-1.5"><label htmlFor="plug-create-password" className="text-xs font-bold text-slate-400">Password</label><div className="relative"><Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" /><input id="plug-create-password" type="password" required autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border border-slate-800 bg-slate-950 py-3 pl-10 pr-4 text-sm text-white focus:border-amber-500 focus:outline-none" placeholder="At least 12 characters" /></div></div>
                     <div className="space-y-1.5"><label htmlFor="plug-create-confirm" className="text-xs font-bold text-slate-400">Confirm password</label><div className="relative"><Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" /><input id="plug-create-confirm" type="password" required autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="w-full rounded-xl border border-slate-800 bg-slate-950 py-3 pl-10 pr-4 text-sm text-white focus:border-amber-500 focus:outline-none" placeholder="Re-enter password" /></div></div>
                   </>}
-                  <button type="submit" disabled={loading} className="mt-2 w-full rounded-xl bg-amber-500 py-3 font-black text-slate-950 transition-all hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">{loading ? 'Creating business foundation…' : authenticatedOwnerId ? 'Create business foundation' : 'Create owner account'}</button>
+                  <button type="submit" disabled={loading} className="mt-2 w-full rounded-xl bg-amber-500 py-3 font-black text-slate-950 transition-all hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">{loading ? 'Creating business…' : authenticatedOwnerId ? 'Create business' : 'Create owner account'}</button>
                 </form>
               )}
               </>}
