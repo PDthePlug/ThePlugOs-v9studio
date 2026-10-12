@@ -56,3 +56,24 @@ jobs:
             echo "::error title=Android debug build failed::${summary:-See Android build job summary for bounded Gradle diagnostics.}"
             exit "$status"
           fi
+      - name: Record Android debug checksum
+        shell: bash
+        run: |
+          apk="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$apk"
+          sha256sum "$apk" | tee "$apk.sha256"
+          digest=$(cut -d' ' -f1 "$apk.sha256")
+          {
+            echo "### Android debug artifact"
+            echo "\`app-debug.apk\` SHA-256: \`$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Android debug artifact
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: theplugos-android-debug-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
