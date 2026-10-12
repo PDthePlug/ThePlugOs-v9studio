@@ -37,6 +37,9 @@ class HubCommandVerifier(
         if (session.revocationVersion != bundle.revocationVersion) {
             throw HubCommandRejectedException("The staff session was created under an obsolete revocation version.")
         }
+        if (session.role != device.role) {
+            throw HubCommandRejectedException("The staff session role no longer matches the paired terminal role.")
+        }
         // Sequence monotonicity is enforced inside the same SQLCipher
         // transaction that writes the receipt. Keeping it out of this
         // preflight permits an exact, signed retry to reach the receipt
