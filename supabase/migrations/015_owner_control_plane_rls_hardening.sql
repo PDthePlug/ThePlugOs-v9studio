@@ -40,19 +40,11 @@ CREATE POLICY "Owners can create staff profiles for their businesses"
         AND role IN ('CASHIER', 'KITCHEN_STAFF', 'MANAGER')
     );
 
-CREATE POLICY "Owners can update staff profiles for their businesses"
-    ON public.staff_members FOR UPDATE TO authenticated
-    USING (private.is_business_owner(business_id))
-    WITH CHECK (
-        private.is_business_owner(business_id)
-        AND EXISTS (
-            SELECT 1
-            FROM public.branches branch
-            WHERE branch.id = staff_members.branch_id
-              AND branch.business_id = staff_members.business_id
-              AND branch.is_active
-        )
-    );
+-- Intentionally do NOT create an authenticated UPDATE policy on staff_members.
+-- Role changes, deactivation and other staff-directory mutations can invalidate
+-- live operational authority and must be introduced only through an atomic,
+-- session-revoking owner workflow. The table-level UPDATE grant remains inert
+-- without a matching RLS UPDATE policy.
 
 CREATE POLICY "Owners can create catalog products for their businesses"
     ON public.catalog_products FOR INSERT TO authenticated
