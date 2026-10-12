@@ -8,7 +8,6 @@ import {
   CircleCheck,
   Clock3,
   PackageCheck,
-  Radio,
   ShieldCheck,
   ShoppingBag,
   Smartphone,
@@ -42,7 +41,6 @@ const roles = [
   { role: 'Kitchen', line: 'Know what is next and how long it has waited.', icon: ChefHat, accent: 'kitchen' },
   { role: 'Manager', line: 'Act on today’s exceptions before they grow.', icon: ShieldCheck, accent: 'manager' },
   { role: 'Owner', line: 'See the heartbeat without standing at the counter.', icon: BarChart3, accent: 'owner' },
-  { role: 'Administrator', line: 'Keep the operating system healthy and trusted.', icon: Radio, accent: 'admin' },
 ];
 
 const BrandMark = ({ small = false }: { small?: boolean }) => (
