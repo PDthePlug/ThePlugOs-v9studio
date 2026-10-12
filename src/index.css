@@ -65,6 +65,31 @@ html, body {
   color: #7a4b00 !important;
 }
 
+/* A business can enter the read-only owner dashboard while secured shop setup
+   is still pending. App renders that state as a sibling status card. Keep the
+   card in the document flow rather than floating it over orders, pairing or
+   recovery controls—especially on narrow phone screens. */
+#root:has(> aside.fixed[role="status"]) {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex-direction: column;
+  background: #f7f2e9;
+}
+
+#root:has(> aside.fixed[role="status"]) > aside.fixed[role="status"] {
+  position: static !important;
+  inset: auto !important;
+  order: -1;
+  width: calc(100% - 2rem);
+  margin: 1rem auto 0;
+  box-shadow: 0 12px 32px rgba(40, 32, 15, 0.08) !important;
+}
+
+#root:has(> aside.fixed[role="status"]) > div {
+  padding-bottom: 0 !important;
+}
+
 /* Thermal Printer Styling */
 @media print {
   body {
