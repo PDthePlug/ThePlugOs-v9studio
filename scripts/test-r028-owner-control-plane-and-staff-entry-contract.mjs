@@ -15,6 +15,7 @@ const [
   marketing,
   roleEntry,
   ownerPortal,
+  ownerStyles,
   ownerAdmin,
   ownerProjection,
   credentialReset,
@@ -28,6 +29,7 @@ const [
   load('src/screens/MarketingLanding.tsx'),
   load('src/components/RoleLoginModal.tsx'),
   load('src/components/OwnerPortalShell.tsx'),
+  load('src/index.css'),
   load('src/lib/owner-admin.ts'),
   load('src/lib/owner-projection.ts'),
   load('src/components/NativeStaffCredentialResetControl.tsx'),
@@ -81,6 +83,15 @@ for (const copy of [
   'Staff profiles and PIN recovery',
   'Connect the shop',
 ]) requireText(ownerPortal, copy);
+
+// Phone users must be able to discover every owner section without swiping a
+// hidden rail, and the order view must collapse into labeled cards rather than
+// forcing horizontal panning across a desktop table.
+requireText(ownerStyles, '@media (max-width: 639px)');
+requireText(ownerStyles, 'nav[aria-label="Owner workspace"]');
+requireText(ownerStyles, 'grid-template-columns: repeat(2, minmax(0, 1fr))');
+requireText(ownerStyles, 'table tbody td:nth-child(1)::before { content: "Order"; }');
+requireText(ownerStyles, 'table tbody td:nth-child(6)::before { content: "Total"; }');
 
 // Catalog management is real owner RLS data, but stock quantities are not browser-overwritten.
 requireText(ownerAdmin, "supabase.from('catalog_products').insert");
