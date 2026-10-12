@@ -1,7 +1,9 @@
 import React from 'react';
 import {
+  ArrowRight,
   Building2,
   CheckCircle2,
+  LayoutDashboard,
   LogOut,
   Package,
   ShieldCheck,
@@ -20,6 +22,7 @@ interface FirstTimeSetupWizardProps {
     isOwner: boolean;
     ownerId?: string;
   };
+  onOpenOwnerDashboard?: () => void;
   onSignOut?: () => void;
 }
 
@@ -28,9 +31,14 @@ interface FirstTimeSetupWizardProps {
  * has been created. The browser presents setup progress and may request the
  * bounded native enrollment flow, but it never captures staff PINs, device
  * keys, terminal credentials, or operational command authority.
+ *
+ * The owner may enter the read-only cloud dashboard before native onboarding
+ * is complete. That presentation choice never changes onboarding_status and
+ * never represents the business as ready to trade.
  */
 export const FirstTimeSetupWizard: React.FC<FirstTimeSetupWizardProps> = ({
   businessAuth,
+  onOpenOwnerDashboard,
   onSignOut,
 }) => (
   <div className="plug-setup-gate fixed inset-0 z-50 overflow-y-auto p-4">
@@ -178,14 +186,31 @@ export const FirstTimeSetupWizard: React.FC<FirstTimeSetupWizardProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-slate-800 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-xs leading-5 text-slate-500">
-            Setup stays in progress until the secured shop device confirms the operating configuration.
-          </span>
-          <span className="inline-flex items-center gap-2 text-xs font-bold text-amber-500">
-            <Smartphone className="h-4 w-4" aria-hidden="true" /> Continue on your Cashier Hub
-          </span>
+        <div className="grid gap-4 border-t border-slate-800 pt-5 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div>
+            <span className="block text-xs leading-5 text-slate-500">
+              Setup stays in progress until the secured shop device confirms the operating configuration.
+            </span>
+            <span className="mt-1 inline-flex items-center gap-2 text-xs font-bold text-amber-500">
+              <Smartphone className="h-4 w-4" aria-hidden="true" /> Continue setup on your Cashier Hub
+            </span>
+          </div>
+          {onOpenOwnerDashboard && (
+            <button
+              type="button"
+              onClick={onOpenOwnerDashboard}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-black text-slate-950"
+            >
+              <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+              Open owner dashboard
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
+
+        <p className="text-xs leading-5 text-slate-500">
+          The owner dashboard is available while setup is in progress. Opening it does not complete onboarding or unlock live trading.
+        </p>
       </div>
     </section>
   </div>
