@@ -18,9 +18,11 @@ interface CredentialResetCodeResponse {
 }
 
 /**
- * Owner browser control for a native credential reset. It deliberately
+ * Owner browser control for native credential setup or recovery. It deliberately
  * selects only a cloud-directory staff record and obtains a one-time code;
  * neither a current nor replacement PIN exists in React state or a request.
+ * R012 completes with an INSERT ... ON CONFLICT UPDATE, so the same native
+ * ceremony can establish a first credential or replace an existing one.
  */
 export const NativeStaffCredentialResetControl: React.FC<NativeStaffCredentialResetControlProps> = ({
   businessId,
@@ -53,7 +55,7 @@ export const NativeStaffCredentialResetControl: React.FC<NativeStaffCredentialRe
     const timer = window.setTimeout(() => {
       setResetCode(null);
       setExpiresAt(null);
-      setMessage('The recovery code expired and was removed from this browser screen. Issue a new code if required.');
+      setMessage('The one-time PIN setup code expired and was removed from this browser screen. Issue a new code if required.');
     }, delay + 50);
     return () => window.clearTimeout(timer);
   }, [expiresAt, resetCode]);
@@ -82,11 +84,11 @@ export const NativeStaffCredentialResetControl: React.FC<NativeStaffCredentialRe
       }
       setResetCode(result.resetCode);
       setExpiresAt(result.expiresAt);
-      setMessage('Enter this one-time recovery code directly on the enrolled Android Cashier Hub. The Hub will collect and confirm the new PIN natively.');
+      setMessage('Enter this one-time code directly on the enrolled Android Cashier Hub. The Hub will collect and confirm the staff member’s PIN natively.');
     } catch {
       setResetCode(null);
       setExpiresAt(null);
-      setMessage('A recovery code could not be issued. An active enrolled Hub, owner session, and deployed cloud recovery service are required.');
+      setMessage('A PIN setup code could not be issued. An active enrolled Hub, owner session, and deployed cloud credential service are required.');
     } finally {
       setIssuing(false);
     }
@@ -97,9 +99,9 @@ export const NativeStaffCredentialResetControl: React.FC<NativeStaffCredentialRe
     setMessage(null);
     try {
       await localHubRuntime.openNativeStaffCredentialReset();
-      setMessage('Native credential reset opened. Enter the owner recovery code and new PIN only on the Android screen.');
+      setMessage('Native PIN setup opened. Enter the owner-issued code and the staff PIN only on the Android screen.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'The native credential-reset screen could not be opened.');
+      setMessage(error instanceof Error ? error.message : 'The native PIN setup screen could not be opened.');
     } finally {
       setOpeningNative(false);
     }
@@ -113,8 +115,8 @@ export const NativeStaffCredentialResetControl: React.FC<NativeStaffCredentialRe
       <div className="flex items-start gap-3">
         <span className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-2 text-violet-700"><KeyRound className="h-5 w-5" aria-hidden="true" /></span>
         <div>
-          <h3 id="credential-reset-title" className="text-sm font-bold text-stone-900">Staff PIN recovery</h3>
-          <p className="mt-1 text-xs leading-relaxed text-stone-600">Create a recovery code for a staff member. Enter the code and their new PIN in the Android app on the shop Hub.</p>
+          <h3 id="credential-reset-title" className="text-sm font-bold text-stone-900">Staff PIN setup &amp; recovery</h3>
+          <p className="mt-1 text-xs leading-relaxed text-stone-600">Set a first PIN for a new staff profile or replace an existing PIN. The owner portal creates only a short-lived code; the PIN itself is entered on the enrolled Android Hub.</p>
         </div>
       </div>
 
@@ -122,7 +124,7 @@ export const NativeStaffCredentialResetControl: React.FC<NativeStaffCredentialRe
         <p className="rounded-xl border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600">No active staff records are available for this branch. No credential action can be issued.</p>
       ) : (
         <label className="grid gap-1 text-xs font-semibold text-stone-700">
-          Staff member to recover
+          Staff member
           <select value={staffId} onChange={(event) => setStaffId(event.target.value)} disabled={issuing || openingNative} className="rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 font-normal text-stone-900 outline-none focus:border-violet-300 disabled:opacity-60">
             {eligibleStaff.map((member) => <option key={member.id} value={member.id}>{member.name} · {member.role.replace('_', ' ')}</option>)}
           </select>
@@ -131,7 +133,7 @@ export const NativeStaffCredentialResetControl: React.FC<NativeStaffCredentialRe
 
       {resetCode && expiresAt && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4" aria-live="polite">
-          <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-800">One-time native recovery code</span>
+          <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-800">One-time native PIN code</span>
           <strong className="mt-1 block font-mono text-2xl tracking-[0.2em] text-amber-900">{resetCode}</strong>
           <small className="mt-2 block text-xs text-amber-900/80">For {selectedStaff?.name || 'the selected staff member'} · expires {new Date(expiresAt).toLocaleTimeString()} on this device. Do not save or forward it.</small>
         </div>
@@ -142,20 +144,20 @@ export const NativeStaffCredentialResetControl: React.FC<NativeStaffCredentialRe
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => void issueCode()} disabled={!staffId || issuing || openingNative} className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-3 py-2 text-xs font-bold text-white hover:bg-stone-700 disabled:opacity-60">
           <KeyRound className="h-4 w-4" aria-hidden="true" />
-          {issuing ? 'Issuing recovery code…' : resetCode ? 'Issue replacement code' : 'Issue native recovery code'}
+          {issuing ? 'Issuing PIN code…' : resetCode ? 'Issue replacement code' : 'Issue native PIN code'}
         </button>
         {hasNativeHubHost() && <button type="button" onClick={() => void openNativeReset()} disabled={openingNative || issuing} className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-900 hover:bg-stone-100 disabled:opacity-60">
           <Smartphone className="h-4 w-4" aria-hidden="true" />
-          {openingNative ? 'Opening native reset…' : 'Open native reset'}
+          {openingNative ? 'Opening native PIN setup…' : 'Open native PIN setup'}
         </button>}
-        {resetCode && <button type="button" onClick={() => { setResetCode(null); setExpiresAt(null); setMessage('The recovery code was removed from this browser screen.'); }} className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+        {resetCode && <button type="button" onClick={() => { setResetCode(null); setExpiresAt(null); setMessage('The one-time PIN code was removed from this browser screen.'); }} className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50">
           <Trash2 className="h-4 w-4" aria-hidden="true" /> Discard code
         </button>}
       </div>
 
       <p className="flex items-start gap-2 rounded-xl border border-stone-200 bg-white p-3 text-[11px] leading-relaxed text-stone-500">
         <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        PINs stay on the shop device. A successful reset signs staff out of this branch; they must sign in again with their PIN.
+        <span>PINs stay on the shop device. Replacement PINs are entered only on the native Android reset screen. A successful setup or reset signs that staff identity out of the branch; they must sign in again with their PIN.</span>
       </p>
     </section>
   );
