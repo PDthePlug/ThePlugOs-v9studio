@@ -13,6 +13,7 @@ const [
   packageSource,
   adr,
   app,
+  marketing,
   welcome,
   wizard,
   roleEntry,
@@ -27,6 +28,7 @@ const [
   load('package.json'),
   load('docs/architecture/ADR-018_COMPLETE_CUSTOMER_JOURNEY_AND_VISUAL_ACCEPTANCE.md'),
   load('src/App.tsx'),
+  load('src/screens/MarketingLanding.tsx'),
   load('src/screens/WelcomeScreen.tsx'),
   load('src/screens/FirstTimeSetupWizard.tsx'),
   load('src/components/RoleLoginModal.tsx'),
@@ -51,8 +53,8 @@ assert.ok(
 );
 
 // Owner journey: landing -> account/business -> onboarding -> owner dashboard.
+requireText(marketing, 'Set up my business');
 for (const copy of [
-  'Set up my business',
   'Create Business',
   'Business name',
   'First branch name',
