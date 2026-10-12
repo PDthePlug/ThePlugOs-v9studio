@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# Guarded deployment helper for the cloud authority that issues and revokes
-# Hub/terminal admissions. It is intentionally inert unless a human supplies
-# either the ADR-009 controlled configuration command or an approved release
-# command. It never prints, writes, or accepts browser-visible copies of
-# secrets.
+# Guarded deployment helper for ThePlugOS cloud authority.
+#
+# Remote mutation is split into three explicit paths:
+#   * HOLD-preserving isolated staging rehearsal;
+#   * HOLD-preserving production Function configuration against the recorded
+#     R001A-R013 production schema baseline; and
+#   * final production deployment after release status is APPROVED.
+#
+# The helper never accepts browser-visible copies of server secrets and never
+# replays the recorded production schema through Supabase CLI migration history.
 set -euo pipefail
 set +x
 
@@ -11,21 +16,35 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd -- "${script_dir}/.." && pwd)"
 cd "$repository_root"
 
+production_project_ref="iwbbwcaylpulcpvbfkdx"
+contaminated_legacy_staging_ref="dpqtgfxovmiwzkiuzoya"
+
 usage() {
   cat <<'USAGE'
 Usage:
   scripts/deploy-hub-cloud.sh --verify-source
+  scripts/deploy-hub-cloud.sh --rehearse-staging
   scripts/deploy-hub-cloud.sh --configure-production-functions
   scripts/deploy-hub-cloud.sh --deploy
 
 --verify-source performs local release-source checks only.
---configure-production-functions is a production-only, HOLD-preserving ADR-009
-configuration window. It requires an exact project, source, migration-ledger,
-and issuer-key acknowledgement, sets only Function secrets, and deploys no SQL.
---deploy is fail-closed and requires an APPROVED release status, an explicit
-deployment environment/project reference/commit confirmation, the Supabase
-CLI, and secure environment variables. It does not create a staging clone or
-bypass release evidence.
+
+--rehearse-staging is a HOLD-preserving, staging-only evidence path. It refuses
+production and the preserved contaminated legacy staging project, requires an
+exact project/source/issuer acknowledgement, applies the canonical schema in
+explicit source order 001 -> 001A -> 002 ... 015 through the guarded Node
+applicator, sets staging Function secrets, and deploys all seven receivers.
+It does not change RELEASE_STATUS.md and cannot grant production release.
+
+--configure-production-functions is the ADR-009 HOLD-preserving production
+configuration window. It requires the exact recorded production project,
+source, R001A-R013 migration ledger and issuer acknowledgement, sets Function
+secrets, deploys only receivers supported by that recorded schema, and executes
+no SQL.
+
+--deploy is the final production-only path. It requires RELEASE_STATUS.md to be
+APPROVED plus exact environment/project/source confirmations. It never uses
+`db push` against the recorded production database.
 USAGE
 }
 
@@ -35,22 +54,23 @@ require_release_source() {
   node --experimental-strip-types scripts/test-r016-cloud-configuration-contract.mjs
   node scripts/test-r017-terminal-staff-session-contract.mjs
   node scripts/test-r018-terminal-workspace-contract.mjs
-  node scripts/test-r019-cloud-delivery-contract.mjs
+  node --experimental-strip-types scripts/test-r019-cloud-delivery-contract.mjs
   node scripts/test-r020-owner-signup-contract.mjs
   node scripts/test-r021-legacy-browser-retirement-contract.mjs
+  node scripts/test-r029-owner-control-plane-rls-contract.mjs
   node scripts/verify-production-migration-ledger.mjs --emit-fingerprint >/dev/null
 }
 
 require_approved_release() {
   if ! rg -q '^\- \*\*Status:\*\* APPROVED(?:\b|[[:space:][:punct:]])' docs/operations/RELEASE_STATUS.md; then
-    echo "Release status is not APPROVED; refusing remote mutation." >&2
+    echo "Release status is not APPROVED; refusing final production deployment." >&2
     exit 78
   fi
 }
 
 require_hold_release() {
   if ! rg -q '^\- \*\*Status:\*\* HOLD(?:\b|[[:space:][:punct:]])' docs/operations/RELEASE_STATUS.md; then
-    echo "Release status is no longer HOLD; use the approved --deploy path instead." >&2
+    echo "Release status is no longer HOLD; use the approved production path." >&2
     exit 78
   fi
 }
@@ -62,11 +82,14 @@ case "${1:-}" in
     echo "Hub cloud source checks passed. No Supabase project was contacted."
     exit 0
     ;;
+  --rehearse-staging)
+    deployment_mode="hold-staging-rehearsal"
+    ;;
   --configure-production-functions)
     deployment_mode="controlled-production-function-configuration"
     ;;
   --deploy)
-    deployment_mode="approved-release"
+    deployment_mode="approved-production-release"
     ;;
   *)
     usage >&2
@@ -75,7 +98,7 @@ case "${1:-}" in
 esac
 
 require_release_source
-if [[ "${deployment_mode}" == "approved-release" ]]; then
+if [[ "${deployment_mode}" == "approved-production-release" ]]; then
   require_approved_release
 else
   require_hold_release
@@ -95,11 +118,21 @@ required=(
   HUB_OWNER_PORTAL_ORIGIN
 )
 
-if [[ "${deployment_mode}" == "approved-release" ]]; then
-  required+=(THEPLUGOS_DEPLOY_CONFIRM)
-else
-  required+=(THEPLUGOS_FUNCTION_CONFIGURATION_CONFIRM)
-fi
+case "${deployment_mode}" in
+  hold-staging-rehearsal)
+    required+=(
+      THEPLUGOS_STAGING_DATABASE_URL
+      THEPLUGOS_STAGING_SCHEMA_CONFIRM
+      THEPLUGOS_STAGING_REHEARSAL_CONFIRM
+    )
+    ;;
+  controlled-production-function-configuration)
+    required+=(THEPLUGOS_FUNCTION_CONFIGURATION_CONFIRM)
+    ;;
+  approved-production-release)
+    required+=(THEPLUGOS_DEPLOY_CONFIRM)
+    ;;
+esac
 
 for name in "${required[@]}"; do
   if [[ -z "${!name:-}" ]]; then
@@ -113,8 +146,12 @@ if [[ "${THEPLUGOS_DEPLOYMENT_ENV}" != "staging" && "${THEPLUGOS_DEPLOYMENT_ENV}
   exit 64
 fi
 
-if [[ "${deployment_mode}" == "controlled-production-function-configuration" && "${THEPLUGOS_DEPLOYMENT_ENV}" != "production" ]]; then
-  echo "--configure-production-functions is production-only." >&2
+if [[ "${deployment_mode}" == "hold-staging-rehearsal" && "${THEPLUGOS_DEPLOYMENT_ENV}" != "staging" ]]; then
+  echo "--rehearse-staging requires THEPLUGOS_DEPLOYMENT_ENV=staging." >&2
+  exit 64
+fi
+if [[ "${deployment_mode}" != "hold-staging-rehearsal" && "${THEPLUGOS_DEPLOYMENT_ENV}" != "production" ]]; then
+  echo "Production configuration/release modes require THEPLUGOS_DEPLOYMENT_ENV=production." >&2
   exit 64
 fi
 
@@ -123,9 +160,20 @@ if [[ ! "${SUPABASE_PROJECT_REF}" =~ ^[a-z0-9]{20}$ ]] || [[ "${SUPABASE_PROJECT
   exit 64
 fi
 
-if [[ "${deployment_mode}" == "controlled-production-function-configuration" && "${SUPABASE_PROJECT_REF}" != "iwbbwcaylpulcpvbfkdx" ]]; then
-  echo "--configure-production-functions must target the recorded production project." >&2
-  exit 64
+if [[ "${deployment_mode}" == "hold-staging-rehearsal" ]]; then
+  if [[ "${SUPABASE_PROJECT_REF}" == "${production_project_ref}" ]]; then
+    echo "The staging rehearsal refuses the production project." >&2
+    exit 78
+  fi
+  if [[ "${SUPABASE_PROJECT_REF}" == "${contaminated_legacy_staging_ref}" ]]; then
+    echo "The staging rehearsal refuses the preserved contaminated legacy staging project." >&2
+    exit 78
+  fi
+else
+  if [[ "${SUPABASE_PROJECT_REF}" != "${production_project_ref}" ]]; then
+    echo "Production modes must target the recorded ThePlugOS production project." >&2
+    exit 64
+  fi
 fi
 
 if [[ ! "${HUB_OWNER_PORTAL_ORIGIN}" =~ ^https://[^/]+$ ]]; then
@@ -148,14 +196,13 @@ if [[ "${THEPLUGOS_RELEASE_COMMIT}" != "${checked_commit}" ]]; then
   echo "THEPLUGOS_RELEASE_COMMIT does not match the checked-out source commit." >&2
   exit 64
 fi
-
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "The source tree is not clean; refusing to deploy files that are not the reviewed commit." >&2
   exit 64
 fi
 
 issuer_key_fingerprint="$(node scripts/verify-issuer-key-configuration.mjs --emit-fingerprint)"
-
+ledger_fingerprint=""
 if [[ "${THEPLUGOS_DEPLOYMENT_ENV}" == "production" ]]; then
   if [[ -z "${THEPLUGOS_PRODUCTION_MIGRATION_LEDGER_SHA256:-}" || -z "${THEPLUGOS_REMOTE_MIGRATION_LEDGER_CONFIRM:-}" ]]; then
     echo "Production Function deployment requires a verified production migration ledger acknowledgement." >&2
@@ -173,28 +220,46 @@ if [[ "${THEPLUGOS_DEPLOYMENT_ENV}" == "production" ]]; then
   fi
 fi
 
-if [[ "${deployment_mode}" == "approved-release" ]]; then
-  expected_confirmation="deploy:${THEPLUGOS_DEPLOYMENT_ENV}:${SUPABASE_PROJECT_REF}:${checked_commit}"
-  if [[ "${THEPLUGOS_DEPLOY_CONFIRM}" != "${expected_confirmation}" ]]; then
-    echo "THEPLUGOS_DEPLOY_CONFIRM must exactly acknowledge the environment, project, and commit." >&2
-    exit 64
-  fi
-else
-  expected_configuration_confirmation="configure-functions:production:${SUPABASE_PROJECT_REF}:${checked_commit}:${ledger_fingerprint}:${issuer_key_fingerprint}"
-  if [[ "${THEPLUGOS_FUNCTION_CONFIGURATION_CONFIRM}" != "${expected_configuration_confirmation}" ]]; then
-    echo "THEPLUGOS_FUNCTION_CONFIGURATION_CONFIRM must exactly acknowledge the production project, source, migration ledger, and issuer public key." >&2
-    exit 64
-  fi
-fi
+case "${deployment_mode}" in
+  hold-staging-rehearsal)
+    expected_rehearsal_confirmation="rehearse-staging:${SUPABASE_PROJECT_REF}:${checked_commit}:${issuer_key_fingerprint}"
+    if [[ "${THEPLUGOS_STAGING_REHEARSAL_CONFIRM}" != "${expected_rehearsal_confirmation}" ]]; then
+      echo "THEPLUGOS_STAGING_REHEARSAL_CONFIRM must exactly acknowledge the staging project, source commit, and issuer public key." >&2
+      exit 64
+    fi
+    ;;
+  controlled-production-function-configuration)
+    expected_configuration_confirmation="configure-functions:production:${SUPABASE_PROJECT_REF}:${checked_commit}:${ledger_fingerprint}:${issuer_key_fingerprint}"
+    if [[ "${THEPLUGOS_FUNCTION_CONFIGURATION_CONFIRM}" != "${expected_configuration_confirmation}" ]]; then
+      echo "THEPLUGOS_FUNCTION_CONFIGURATION_CONFIRM must exactly acknowledge the production project, source, migration ledger, and issuer public key." >&2
+      exit 64
+    fi
+    ;;
+  approved-production-release)
+    expected_confirmation="deploy:production:${SUPABASE_PROJECT_REF}:${checked_commit}"
+    if [[ "${THEPLUGOS_DEPLOY_CONFIRM}" != "${expected_confirmation}" ]]; then
+      echo "THEPLUGOS_DEPLOY_CONFIRM must exactly acknowledge the production project and source commit." >&2
+      exit 64
+    fi
+    ;;
+esac
 
 if ! command -v supabase >/dev/null 2>&1; then
   echo "Supabase CLI is required in the secure deployment environment." >&2
   exit 69
 fi
 
-# Use the CLI's encrypted project-secret store. The CLI automatically supplies
-# SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY to Functions;
-# these values are intentionally not accepted by this script or source tree.
+# Schema comes first in isolated staging so no receiver is published before the
+# exact RPCs and policies it depends on exist. The applicator refuses non-empty
+# targets and applies the non-CLI-named R001A migration explicitly in order.
+if [[ "${deployment_mode}" == "hold-staging-rehearsal" ]]; then
+  node scripts/apply-staging-schema.mjs --apply --project-ref "$SUPABASE_PROJECT_REF"
+fi
+
+# Hosted Edge Functions receive SUPABASE_URL plus modern publishable/secret key
+# maps automatically (with legacy key fallbacks on older projects). Only
+# ThePlugOS-owned secrets are set here; platform API keys are never copied into
+# this script or source tree.
 supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" \
   "HUB_AUTHORIZATION_ISSUER_KEY_ID=$HUB_AUTHORIZATION_ISSUER_KEY_ID" \
   "HUB_AUTHORIZATION_ISSUER_PRIVATE_JWK_JSON=$HUB_AUTHORIZATION_ISSUER_PRIVATE_JWK_JSON" \
@@ -202,23 +267,18 @@ supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" \
   "HUB_AUTHORIZATION_BUNDLE_TTL_MINUTES=$HUB_AUTHORIZATION_BUNDLE_TTL_MINUTES" \
   "HUB_OWNER_PORTAL_ORIGIN=$HUB_OWNER_PORTAL_ORIGIN"
 
-# The recorded production baseline uses Supabase-managed remote versions that
-# intentionally differ from the immutable source filenames. Never replay it
-# with `db push`; ADR-008's exact ledger acknowledgement guards Functions.
-# A clean staging target has no such existing history and may receive the
-# ordered source migrations only after its separate rehearsal evidence gate.
-if [[ "${THEPLUGOS_DEPLOYMENT_ENV}" == "staging" ]]; then
-  supabase db push --project-ref "$SUPABASE_PROJECT_REF"
-fi
-
-function_names=(hub-enrollment hub-owner-enrollment hub-terminal-enrollment hub-staff-session hub-staff-credential-reset hub-sync)
-
-# R014 is source-complete but is intentionally absent from the recorded
-# production R001A–R013 ledger. A staging --deploy applies the ordered schema
-# first and may exercise the seventh receiver; the HOLD-preserving production
-# configuration window must not deploy a Function whose service RPCs are not
-# yet present in the live schema.
-if [[ "${deployment_mode}" == "approved-release" && "${THEPLUGOS_DEPLOYMENT_ENV}" == "staging" ]]; then
+# Production remains bound to the recorded R001A-R013 ledger. Until an accepted
+# production schema-advance record contains R014/R015, do not publish the
+# terminal staff-session receiver there. Isolated staging receives all seven.
+function_names=(
+  hub-enrollment
+  hub-owner-enrollment
+  hub-terminal-enrollment
+  hub-staff-session
+  hub-staff-credential-reset
+  hub-sync
+)
+if [[ "${deployment_mode}" == "hold-staging-rehearsal" ]]; then
   function_names+=(hub-terminal-staff-session)
 fi
 
@@ -226,8 +286,14 @@ for function_name in "${function_names[@]}"; do
   supabase functions deploy "$function_name" --project-ref "$SUPABASE_PROJECT_REF"
 done
 
-if [[ "${deployment_mode}" == "controlled-production-function-configuration" ]]; then
-  echo "Hub Functions configured for controlled production verification. No schema migration was executed; product release remains HOLD. Provision Android with the matching public issuer-key map before enrollment."
-else
-  echo "Hub cloud authority deployed for ${THEPLUGOS_DEPLOYMENT_ENV}. Provision the Android release with the matching public issuer-key map before enrollment."
-fi
+case "${deployment_mode}" in
+  hold-staging-rehearsal)
+    echo "Isolated staging schema 001-015 and all seven Hub receivers deployed for evidence rehearsal. Product release remains HOLD. Provision Android only with the matching public issuer-key map before hardware acceptance."
+    ;;
+  controlled-production-function-configuration)
+    echo "Hub Functions configured for controlled production verification against the recorded R001A-R013 baseline. No schema migration was executed; product release remains HOLD."
+    ;;
+  approved-production-release)
+    echo "Recorded-baseline Hub cloud receivers deployed to production after release approval. Any receiver requiring schema beyond the accepted production ledger remains withheld."
+    ;;
+esac
