@@ -1,6 +1,16 @@
 # Staging Hub-Authority Rehearsal
 
-- **Status:** Required release gate — no deployment has been performed
+> **Historical implementation note — deployment mechanics superseded.** This
+> August 2026 document is retained for the R001/R002/R003 recovery rationale and
+> early physical acceptance intent. It is **not** the current staging deployment
+> procedure and must not be used to choose a staging project or Function set.
+> Current authority is ADR-020 plus
+> `docs/testing/STAGING_BACKEND_ACCEPTANCE.md`; the guarded execution path is
+> `scripts/deploy-hub-cloud.sh --rehearse-staging` and the current source schema
+> extends through R014/R015. No historical statement that a named clean-staging
+> project is empty/available is current evidence.
+
+- **Status:** Historical release-gate design — current mechanics superseded by ADR-020
 - **Date:** 15 August 2026
 - **Scope:** R001 clone → R002 credential migration → R003 Hub authority → Edge receivers → one physical Android Hub
 
@@ -12,11 +22,10 @@
 - Legacy staging project `dpqtgfxovmiwzkiuzoya` contains incompatible rehearsal
   artifacts and test data and is paused. Treat it as preserved comparison
   evidence: do **not** resume, reset, overwrite, or use it as a release target.
-  Clean staging `nuufscrmkfoukndfmwcc` is the only replacement target and is
-  currently empty. Rebuild it as an **exact R001 clone** using an approved
-  database client/credential path. Do not hand-copy rows or use
-  `supabase/quarantine/legacy-browser-prototype-schema.sql`; it contradicts the
-  canonical migrations.
+  Clean staging `nuufscrmkfoukndfmwcc` was the replacement target recorded by
+  this historical plan. Its historical "empty" classification is not current
+  evidence; ADR-020 requires fresh authorized access and empty-target preflight
+  before any staging mutation.
 - The four unsupported live legacy PIN values must be handled under the
   separately approved owner-controlled reset/conversion plan. Never expose,
   guess, or copy them into a ticket, log, browser, or chat.
@@ -59,6 +68,10 @@ source control.
 
 ## Ordered rehearsal
 
+The sequence below documents the **historical R001–R003-era plan**. Do not run
+it as the current deployment procedure. ADR-020 and the current staging
+acceptance protocol supersede these mechanics.
+
 1. Verify the immutable R001 source and staging target fingerprints using the
    existing clone gates. Stop if they differ.
 2. Create the exact R001 staging clone with the approved dump/restore method.
@@ -74,12 +87,10 @@ source control.
    checkpoint instead of attempting manual R003 repair.
 6. Apply `003_local_hub_authority.sql` to staging once. Record the migration
    transaction result and review the new private/function execute privileges.
-7. Deploy `hub-owner-enrollment`, `hub-enrollment`, `hub-staff-session`, and
-   `hub-sync` to the staging project using `supabase/config.toml`. The three
-   native endpoints use `verify_jwt = false` intentionally: they perform
-   device-proof and service-RPC checks and must not gain browser CORS access.
-   The owner endpoint retains JWT verification and permits only the configured
-   exact owner-portal origin.
+7. Historically, this plan deployed `hub-owner-enrollment`, `hub-enrollment`,
+   `hub-staff-session`, and `hub-sync`. That Function list is superseded. The
+   current staging path deploys the full reviewed seven-Function set only after
+   schema 001–015 has applied and verified.
 8. Set the staging Edge secrets, build the Android staging APK with the public
    issuer-key map, and confirm an empty configuration fails closed.
 9. Create a one-time staging pairing code through an approved owner/server
@@ -118,10 +129,9 @@ Approve the next release gate only if the evidence proves all of the following:
 - the UI labels local commit, queued cloud work, and cloud acknowledgement as
   distinct measured states.
 
-The implementation currently supports native `order.create` and
-`order.status.transition` as the first atomic domain slice, including only
-stock reservation on order placement and one-time release on cancellation.
-Payment capture, stock receipt/waste/adjustment/BOM, shifts, cash-up, refunds,
-and paired-terminal enrollment remain separate release slices; do not describe
-this rehearsal as whole-business production acceptance until those contracts and
-physical proofs exist.
+The implementation originally described here supported native `order.create`
+and `order.status.transition` as the first atomic domain slice. Later source
+passes added cash, inventory, terminal admission/session, owner control-plane,
+and additional hardening contracts. Refer to current ADRs, release status and
+testing protocols rather than this historical scope when evaluating present
+capability.
