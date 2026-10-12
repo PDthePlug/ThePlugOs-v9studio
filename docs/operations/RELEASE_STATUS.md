@@ -108,8 +108,8 @@ immutable production ledger remains R001A–R013.
 ADR-012/R019 hardens source-only cloud batch acknowledgement handling: each
 receiver acknowledgement is bound to its own contiguous action-family group,
 and malformed, duplicate, missing, or cross-group IDs retain the local outbox.
-This is not evidence of live `hub-sync` durability, retry/restart recovery, or
-production readiness.
+This is not evidence of a deployed `hub-sync` Function, durable cloud
+acknowledgement, retry/restart recovery, or production readiness.
 
 ### PASS 5 staging rehearsal readiness
 
