@@ -33,7 +33,7 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: gradle
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
       - run: sdkmanager "platforms;android-36"
       - run: npm ci --legacy-peer-deps --no-audit --no-fund
       - run: npm run android:assemble:debug
