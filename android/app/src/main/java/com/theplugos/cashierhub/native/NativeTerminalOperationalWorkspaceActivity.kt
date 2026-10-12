@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
 import android.view.ViewGroup
@@ -33,9 +35,16 @@ class NativeTerminalOperationalWorkspaceActivity : Activity() {
     private lateinit var taskRoot: LinearLayout
     private lateinit var refresh: Button
     private val basket = linkedMapOf<String, Double>()
+    private val lifecycleHandler = Handler(Looper.getMainLooper())
     private var context: NativeOperatorContext? = null
     private var contextRequestInFlight = false
     private var refreshAfterCurrentRequest = false
+    private val sessionRevalidation = object : Runnable {
+        override fun run() {
+            if (::controller.isInitialized && ::sessions.isInitialized) requestContext(force = true)
+            lifecycleHandler.postDelayed(this, CONTEXT_REVALIDATION_MS)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,9 +89,11 @@ class NativeTerminalOperationalWorkspaceActivity : Activity() {
         }
         close.setOnClickListener { finish() }
         controller.start()
+        lifecycleHandler.postDelayed(sessionRevalidation, CONTEXT_REVALIDATION_MS)
     }
 
     override fun onDestroy() {
+        lifecycleHandler.removeCallbacks(sessionRevalidation)
         if (::controller.isInitialized) controller.stop()
         super.onDestroy()
     }
@@ -91,6 +102,7 @@ class NativeTerminalOperationalWorkspaceActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == SIGN_IN_REQUEST && resultCode == RESULT_OK) {
+            basket.clear()
             controller.start()
             requestContext(force = true)
         }
@@ -110,7 +122,10 @@ class NativeTerminalOperationalWorkspaceActivity : Activity() {
         }
         if (snapshot.state in setOf(TerminalLocalLinkState.AUTHENTICATED, TerminalLocalLinkState.STAFF_SESSION_ACTIVE)) {
             requestContext()
-        } else if (snapshot.state !in setOf(TerminalLocalLinkState.DISCOVERING, TerminalLocalLinkState.PROXIMITY_SEEN, TerminalLocalLinkState.ENDPOINT_RESOLVED, TerminalLocalLinkState.TLS_PINNING, TerminalLocalLinkState.CHALLENGED)) {
+        } else {
+            // ADR-011/ADR-016 safe-stop: a disconnected or re-authenticating
+            // terminal must not leave the last measured task controls visible
+            // as though they were still live operational truth.
             context = null
             taskRoot.removeAllViews()
         }
@@ -398,7 +413,7 @@ class NativeTerminalOperationalWorkspaceActivity : Activity() {
                     else -> result.error ?: "The signed command is retained for an exact retry when the Hub is available."
                 }
                 onFinal(result)
-                if (result.outcome in setOf("APPLIED", "DUPLICATE")) requestContext(force = true)
+                if (result.outcome in FINAL_CONTEXT_REMEASURE_OUTCOMES) requestContext(force = true)
             }
         } catch (error: IllegalStateException) {
             status.text = error.message ?: "The terminal command could not be prepared."
@@ -414,7 +429,7 @@ class NativeTerminalOperationalWorkspaceActivity : Activity() {
                 } else {
                     result.error ?: "The saved command remains pending."
                 }
-                if (result.outcome in setOf("APPLIED", "DUPLICATE")) requestContext(force = true)
+                if (result.outcome in FINAL_CONTEXT_REMEASURE_OUTCOMES) requestContext(force = true)
             }
         } catch (error: IllegalStateException) {
             status.text = error.message ?: "The saved command could not be retried."
@@ -517,9 +532,11 @@ class NativeTerminalOperationalWorkspaceActivity : Activity() {
 
     private companion object {
         const val SIGN_IN_REQUEST = 481
+        const val CONTEXT_REVALIDATION_MS = 15_000L
         const val MAX_MONEY = 999_999_999.99
         const val MAX_STOCK = 99_999_999_999.999
         const val MONEY_EPSILON = 0.000_001
         const val QUANTITY_EPSILON = 0.000_001
+        val FINAL_CONTEXT_REMEASURE_OUTCOMES = setOf("APPLIED", "DUPLICATE", "REJECTED")
     }
 }
