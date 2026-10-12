@@ -10,7 +10,9 @@
   production migration-ledger safeguards, ADR-012/R022 role-experience
   restoration, ADR-013/R023 merchant operational surfaces, ADR-015/R024
   cross-device session conflict hardening, ADR-016/R025 terminal authority
-  safe-stop/revalidation, and a clean CI Android debug-host assembly
+  safe-stop/revalidation, ADR-019/R028/R029 owner control-plane and RLS
+  hardening, ADR-020/R030 HOLD-safe staging backend rehearsal, and clean CI
+  web/native Android package evidence
 - **Production mutation authority:** narrowly authorized for the exact
   R001A→R012 controlled remediation sequence in
   `docs/evidence/CONTROLLED_PRODUCTION_REMEDIATION_2026-08-26.md`; that
@@ -20,184 +22,172 @@
 
 ## What is true today
 
-The browser application is an owner-authenticated cloud-foundation shell. It
-can create an R001 business foundation and read owner-scoped business, branch,
-and staff-directory facts. It does not act as a staff authority or directly
-mutate operational tables.
+The browser application is an owner-authenticated control plane. It can create
+an R001 business foundation, read owner-scoped business/branch/order/stock
+facts, administer customer-facing catalog metadata, and create credential-free
+Cashier/Kitchen/Manager directory profiles under the source-defined owner RLS
+boundary. It does not accept staff PINs, write physical stock quantities,
+transition operational orders directly, create operational staff sessions, or
+issue terminal commands.
+
+The owner control plane is split into Overview, Orders, Menu, Stock, Finance,
+Team & access, and Devices & settings. PASS 4 records responsive desktop/mobile
+fixture evidence and a checksum-verifiable Android package for the same runtime
+source. That evidence proves source/build/presentation behavior only; fixture
+Auth, cloud data, and bridge responses are not live Supabase or hardware
+acceptance.
 
 Owner account signup is source-guarded: it is limited to an exact configured
 owner-portal origin, separates confirmation from password recovery, and waits
-for a confirmed email before the R001 foundation RPC. It is **not** live
-signup evidence: the production Auth setting for leaked-password protection is
-currently reported disabled, and the exact Site URL, redirect allow-list,
-email-delivery, confirmation, and rate-limit settings have not yet been
-recorded as accepted evidence.
+for a confirmed email before the R001 foundation RPC. It is **not** live signup
+evidence: the exact production Auth Site URL, redirect allow-list,
+email-delivery, confirmation, leaked-password protection, and rate-limit state
+have not been re-inspected and recorded as accepted evidence through the
+currently connected account.
 
-The first operational slice is an Android-native Cashier Hub foundation. Its
-design is local-first: SQLCipher holds the local ledger, Android Keystore holds
-device keys, a signed authorization bundle establishes one branch authority,
-and cloud receivers replicate durable Hub events. R001A–R013 database contracts
-are recorded on the production project, but no Edge receiver is deployed and no
-native client has used those contracts. Source-only R004/R005 add
-order-transition authority and a cash-shift/cash-capture path. The source-only
-native Kitchen workflow can request the already-authorized
-`PLACED -> PREPARING -> READY` transitions through the Hub, but it does not
-demonstrate remote Kitchen, printer, notification, or physical delivery. No
-Edge receiver is **deployed**.
+The Android-native Cashier Hub remains the operational authority foundation.
+SQLCipher holds the local ledger, Android Keystore holds device keys, a signed
+authorization bundle establishes one branch authority, and cloud receivers are
+designed to replicate durable Hub events. Source-only R004/R005 add
+order-transition authority and a cash-shift/cash-capture path. The native
+Kitchen workflow can request only `PLACED -> PREPARING -> READY`; Cashier can
+request collection only after the required payment fact; Manager holds the
+source-only shift-close and counted-inventory receipt/correction/waste paths.
+Those capabilities do not by themselves demonstrate physical handover,
+printing, supplier/payment workflow, cash custody, remote Kitchen delivery, or
+cloud acknowledgement.
 
-The source-only Cashier collection workflow can request the existing
-`READY -> COLLECTED` transition only after the local cash-capture fact is
-present. It does not demonstrate physical handover, receipt printing, remote
-delivery, or cloud acknowledgement.
+The source contains owner-controlled Hub/terminal pairing, admission renewal and
+revocation, native local-link discovery, TLS certificate pinning, fresh terminal
+challenge proof, native PIN/session authority, and role-minimized Cashier,
+Kitchen, and Manager terminal workspaces. ADR-015/R024 and ADR-016/R025 harden
+same-staff cross-device conflicts, role/session drift, restart binding,
+stale-authority safe-stop, and reconnect revalidation. CI compilation and
+source gates are not physical-device evidence.
 
-The source-only Manager cash-shift-close workflow can record an explicit
-physical count and Hub-derived variance after pending orders are resolved. It
-does not demonstrate cash-up approval, bank deposit, printing, physical
-custody transfer, or cloud acknowledgement.
-
-The source-only Manager inventory-receipt workflow can record a physical
-counted quantity for active signed branch products. It does not demonstrate a
-supplier, purchase order, invoice, cost, payment, allocation, stock adjustment,
-or cloud acknowledgement.
-
-The source-only Manager inventory-count-correction workflow can record an
-observed final quantity for active signed branch products and derive the stock
-difference. It does not classify waste/loss, or demonstrate a supplier,
-purchase order, cost, payment, approval, or cloud acknowledgement.
-
-The source-only Manager inventory-waste workflow can record a positive unusable
-quantity for an active signed branch product with a bounded spoilage, damage,
-or expiry reason. It does not demonstrate a supplier claim, cost, tax, cash,
-financial-loss calculation, disposal certificate, approval, or cloud
-acknowledgement.
-
-The source-only native pending-order-cancellation workflow exposes only the
-already-authorized `PENDING` cancellation transitions for Cashier/Manager
-roles. It does not demonstrate a refund, cash reversal, return, or cloud
-acknowledgement.
-
-The Android host now has a source-only native station-entry and local
-session-end path that does not borrow an Owner browser session. This does not
-constitute a cloud logout, a hardware acceptance result, or a production
-release claim.
-
-ADR-012/R022 restores a recognizable role-based merchant entry experience
-without returning PIN verification or role selection to React. ADR-013/R023
-then restores merchant-facing operational hierarchy across the source-only
-Cashier, Kitchen, and Manager station surfaces: Cashier follows build order →
-take payment → hand over; Kitchen follows waiting → preparing → ready; Manager
-sees cash control, order exceptions, and counted-stock tasks. The same native
-operator-context, command-request, exact-retry, and native-confirmed-abandonment
-boundaries remain in force. The source and native host now have a clean CI
-build result, but this is not a physical station, multi-device,
-cloud-acknowledgement, payment-settlement, or production-release result.
-
-The source now contains an owner-only device-pairing control, terminal
-admission/revocation and renewal contracts, and a native terminal local-link
-engine. It discovers an admitted Hub over LAN mDNS or Wi-Fi Direct, treats
-Bluetooth only as a proximity hint, pins the Hub TLS certificate, and proves
-the terminal key against the Hub's fresh nonce. ADR-010/R014 define a native
-PIN/session and signed-command path. ADR-011/R018 adds a native,
-role-minimized Cashier, Kitchen, and Manager terminal workspace over that
-authenticated link; it derives task data from the Hub and submits only the
-already-authorized signed commands. ADR-015/R024 and ADR-016/R025 harden
-same-staff cross-device conflicts, role/session drift, restart binding, stale
-authority safe-stop, and reconnect revalidation. R014 and its Edge receiver are
-not deployed to the recorded R001A–R013 production baseline. A clean CI Android
-`:app:assembleDebug` is recorded in
-`docs/evidence/PASS_2_ROLE_SESSION_CONFLICT_HARDENING_2026-10-12.md`, but no
-staging acceptance, physical Android execution, radio connection, certificate
-handshake, or multi-device result has been recorded. A terminal therefore
-remains non-operational in live production until those exact schema, Function,
-and physical evidence gates are complete.
+Source migration R014 defines terminal staff-session/challenge authority and the
+`hub-terminal-staff-session` receiver. Source migration R015 retires the broad
+member write policies and narrows browser staff/catalog writes to the owner
+control plane. Neither R014 nor R015 is recorded as applied to production; the
+immutable production ledger remains R001A–R013.
 
 ADR-012/R019 hardens source-only cloud batch acknowledgement handling: each
 receiver acknowledgement is bound to its own contiguous action-family group,
-and malformed, duplicate, or cross-group IDs retain the local outbox. This is
-not evidence of a deployed `hub-sync` Function, durable cloud acknowledgement,
-retry/restart recovery, or production readiness.
+and malformed, duplicate, missing, or cross-group IDs retain the local outbox.
+This is not evidence of live `hub-sync` durability, retry/restart recovery, or
+production readiness.
+
+### PASS 5 staging rehearsal readiness
+
+ADR-020/R030 now provide a deterministic, HOLD-preserving backend rehearsal
+path. `scripts/deploy-hub-cloud.sh --rehearse-staging` is staging-only and
+refuses both the recorded production project and the preserved contaminated
+legacy staging project. It invokes an explicit ordered schema applicator rather
+than `supabase db push` because the canonical
+`001a_retire_unsupported_legacy_staff_pins.sql` filename is not discoverable by
+the current Supabase CLI numeric migration filename pattern.
+
+The staging applicator requires a clean reviewed commit, a database URL bound
+to the exact confirmed staging project, TLS certificate verification, and an
+empty ThePlugOS target. It applies `001 -> 001A -> 002 ... -> 015`, verifies the
+R014 RPCs and R015 owner policies, and only then allows Function secrets/code to
+be published. R030 fixes the reviewed Function auth set at six custom
+native-proof receivers with `verify_jwt=false` plus the JWT-protected
+`hub-owner-enrollment` browser receiver.
+
+This is **source/preflight readiness only**. No authorized isolated ThePlugOS
+staging project is visible to the currently connected Supabase account, so
+`docs/testing/STAGING_BACKEND_ACCEPTANCE.md` remains **BLOCKED / not executed**.
+No Applied Commerce or other unrelated project may be substituted to obtain a
+PASS.
 
 No claim of production readiness, live multi-device operation, payment
-settlement, completed order collection, kitchen delivery, printer delivery, or
-cloud acknowledgement is valid until the gates below have recorded evidence.
+settlement, completed order collection, Kitchen delivery, printer delivery, or
+cloud acknowledgement is valid until the gates below have recorded direct
+measured evidence.
 
 ## Environment boundary
 
 | Environment | Current classification | Allowed action |
 |---|---|---|
-| Production `iwbbwcaylpulcpvbfkdx` | R001A–R013 schema baseline recorded; no Edge Function deployed | Preserve the ledger; configure/deploy Functions only through ADR-007/ADR-008 guards after the required secrets, exact origin, Android public issuer map, and evidence are present; do not treat this as a product release or hardware acceptance |
-| Legacy staging `dpqtgfxovmiwzkiuzoya` | Paused contaminated rehearsal evidence | Preserve for comparison; do not resume, reset, overwrite, or treat as a release target without a separate review |
-| Clean staging `nuufscrmkfoukndfmwcc` | Not available for this delivery constraint | Do not use, deploy to, or mutate while delivery proceeds local-first without staging |
+| Production `iwbbwcaylpulcpvbfkdx` | Immutable R001A–R013 schema baseline recorded; current connected account cannot re-inspect it; R014/R015 are source-only | Preserve the ledger. Do not replay source migrations or publish the R014-dependent terminal staff-session receiver until a separately accepted production schema-advance record exists. Production Function configuration remains subject to ADR-007/ADR-008/ADR-009 guards and is not product-release authority. |
+| Legacy staging `dpqtgfxovmiwzkiuzoya` | Preserved contaminated rehearsal evidence | Do not resume, reset, overwrite, or use as the PASS 5 rehearsal target. ADR-020/R030 explicitly refuse it. |
+| Historical clean-staging reference `nuufscrmkfoukndfmwcc` | Not visible/authorized through the current connected Supabase account; no current acceptance claim | Do not infer availability or mutate it without explicit authorized access and a fresh-environment preflight. |
+| New isolated ThePlugOS staging-equivalent project | Not currently connected/authorized | Required next live backend target. Only after explicit project/cost authorization may ADR-020 rehearsal and `docs/testing/STAGING_BACKEND_ACCEPTANCE.md` be executed. |
 
 ## Required gates before a production release
 
-1. Create an isolated clean staging project and prove the R001 clone and
-   restore path.
-2. Complete owner-controlled native resets for the four retired credential
-   records, then rehearse the same recovery path in staging.
-3. Validate the recorded R001A–R013 baseline in an accepted staging-equivalent
-   environment, including real Supabase RLS, Edge Function, and service-role
-   checks; do not replay the production baseline through `db push`.
-4. Build and exercise the Android host on physical API 24+ hardware with
-   provisioned issuer keys and cloud receiver configuration.
+1. Connect or create an explicitly authorized isolated ThePlugOS staging project
+   and execute ADR-020's empty-target `001 -> 001A -> 002 ... -> 015` rehearsal.
+2. Complete `docs/testing/STAGING_BACKEND_ACCEPTANCE.md`, including live owner
+   RLS positive/negative cases, all seven Function authentication boundaries,
+   R014 terminal staff-session challenge/PIN proof, and Hub sync acknowledgement
+   behavior.
+3. Complete owner-controlled native resets for retired production credential
+   records through the accepted recovery path; do not expose legacy credential
+   values.
+4. Build and exercise the Android host on physical API 24+ hardware with the
+   matching accepted public issuer-key map and staging cloud receiver
+   configuration.
 5. Prove atomic orders, stock reservations/reversals, durable acknowledgement,
-   branch isolation, revoke/expiry safe-stop, and restart recovery.
+   branch isolation, revoke/expiry safe-stop, exact retry and restart recovery.
 6. Prove Hub/terminal enrollment, admission renewal/revocation, LAN mDNS,
    Wi-Fi Direct, Bluetooth proximity, certificate-pin rejection, and signed
    challenge behavior on supported physical Android hardware.
-7. Exercise the ADR-010/R014 and ADR-011/R018 terminal session, measured
-   context, and signed-command contracts on real devices before presenting an
-   authenticated terminal link as a Cashier, Kitchen, or Manager station.
-8. Complete payment settlement, cashup custody, printing, Kitchen delivery,
-   and the remaining operational workflows before presenting them as available
+7. Exercise ADR-010/R014 and ADR-011/R018 terminal session, measured context,
+   cross-device supersession and signed-command contracts on real devices before
+   presenting an authenticated terminal link as a Cashier, Kitchen, or Manager
+   station.
+8. Complete payment settlement, cash-up custody, printing, Kitchen delivery,
+   and the remaining operational workflows before presenting them as complete
    product features.
-9. Complete accessibility, observability, backup/restore, incident, and pilot
-   acceptance with evidence tied to exact source and migration hashes.
+9. Complete accessibility, observability, backup/restore, incident, security,
+   and pilot acceptance with evidence tied to exact source, deployment and
+   migration hashes.
+10. Only after the required staging/hardware/pilot evidence is accepted may a
+    separately reviewed production schema-advance plan move beyond the recorded
+    R001A–R013 ledger and reconsider release status.
 
 ## Documentation rule
 
 The historical files under `docs/certification/` are not release evidence.
 They describe previous prototype targets and can contain optimistic or
 simulated claims. Each is marked as superseded. A release decision must cite
-current, reproducible build, hardware, staging, and pilot evidence instead.
+current, reproducible build, backend, hardware, staging and pilot evidence
+instead.
 
 ## Never do from this source tree
 
 - Run a file from `supabase/quarantine/` as a database input.
-- Apply R002 or R003 to production outside the documented owner-approved
-  remediation window and its ordered evidence record.
-- Re-enable the browser IndexedDB/event/certificate/sync kernels for
-  operational authority.
+- Replay the production database through `supabase db push` or rewrite the
+  immutable R001A–R013 production migration ledger to make local filenames fit.
+- Apply R002/R003 or later production schema changes outside an explicitly
+  accepted production remediation/schema-advance record.
+- Use an unrelated Supabase project as ThePlugOS staging evidence.
+- Re-enable the browser IndexedDB/event/certificate/sync kernels for operational
+  authority.
 - Declare a local event delivered merely because connectivity returned.
-- Put a staff PIN, cloud secret, signing key, device session, or authorization
-  envelope in browser storage, logs, or the Capacitor bridge.
+- Put a staff PIN, cloud secret, signing key, device session, authorization
+  envelope, service key, or staging database password in browser storage, logs,
+  screenshots, evidence documents, or the Capacitor bridge.
 
-## Frontend correction — 5 October 2026
+## Frontend correction — 5 October 2026; reconciled 12 October 2026
 
-The frontend uses the existing Supabase public configuration and owner identities.
-The temporary Better Auth/browser-database replacement is withdrawn; none of its
-migrations may be applied to this project. Supabase Auth's Site URL and signup
-confirmation/recovery redirects still require live acceptance evidence. No new
-database connection or new Supabase project is required to restore the frontend.
-The connector account cannot currently inspect this project; that is an access
-limitation, not proof that its existing configuration is absent.
+The frontend uses the established Supabase public configuration and owner
+identity model. The temporary Better Auth/browser-database replacement remains
+withdrawn; none of its migrations may be applied to this project. R003's
+browser PIN/pairing privilege retirement and the installed native device
+runtime remain intact.
 
-R003's recorded browser PIN/pairing privilege retirement and the installed device
-runtime remain intact. Frontend fixtures, local source checks and cloud-page
-rendering do not establish real independent device pairing or local-link success.
+PASS 4 extended the recovered frontend into a sectioned owner control plane and
+an explicit public staff-entry path while preserving native staff authority.
+Its responsive fixture journey, Vercel production frontend deployment and
+Android package evidence are recorded in
+`docs/evidence/PASS_4_OWNER_CONTROL_PLANE_AND_STAFF_ENTRY_HARDENING_2026-10-12.md`.
+Those results do not establish live Supabase Auth/RLS/Function or independent
+physical-device acceptance.
 
-Validation for the frontend correction: TypeScript checking, the complete
-`npm run test:all` source/SQL contract gate and 45 unit/component tests passed.
-The production build passed. Local Playwright runs against development and built
-assets passed for owner, cashier, kitchen and manager in independent desktop and
-mobile contexts, including automatic kitchen refresh and no horizontal overflow.
-All authentication, cloud-data and native bridge responses in these renderer
-runs were fixtures. Engine packages, Supabase sources and Android sources are
-unchanged from the preserved implementation.
-
-Live owner sign-in, recovery, pairing receivers, PIN entry, device synchronization
-and independent physical-device acceptance remain unverified in this correction.
-The environment's public Supabase probe was blocked by a network proxy, while the
-connected administrative account lacked project access. Neither result proves
-that the configured backend is missing or offline. No remote schema, authentication
-settings or Edge Function deployment was changed.
+PASS 5 adds the guarded source path needed to obtain that backend evidence
+without mutating production or silently skipping R001A. Until an authorized
+staging project is connected and the current staging protocol is executed,
+backend-dependent release gates remain BLOCKED and overall status remains HOLD.
