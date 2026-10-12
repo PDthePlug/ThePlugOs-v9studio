@@ -11,6 +11,8 @@ ADR-011 requires a disconnected or expired terminal to render unavailable rather
 
 A terminal can hold a previously measured role context while the local link re-enters discovery. It can also keep that context visible after the same staff member signs in on another terminal until the old terminal next requests context or attempts a command. Those stale controls do not bypass Hub authorization, but they violate the intended safe-stop experience and make cross-device session replacement look inconsistent.
 
+The existing terminal wire protocol intentionally rejects unsupported message types. This hardening therefore must not introduce a new unsolicited message that could force an older terminal peer to drop an otherwise authenticated connection.
+
 ## Decision
 
 ### 1. Non-authenticated link state invalidates rendered operational context
@@ -19,21 +21,15 @@ The native terminal workspace may render Cashier, Kitchen, or Manager task contr
 
 When the link moves to discovery, TLS pinning, challenge, unavailable, not-enrolled, or any other non-authenticated state, the workspace immediately removes the rendered operational context and action controls. It may retain the encrypted exact pending command intent for retry, because that is recovery state rather than a display authorization.
 
-### 2. Session authority changes are broadcast as a non-secret invalidation signal
+### 2. Periodic authenticated context revalidation detects expiry and supersession
 
-After the Hub atomically installs a verified terminal staff session, it broadcasts an `AUTHORITY_CHANGED` notification to authenticated local peers. The message contains no staff ID, session ID, role, key, PIN, bundle, or command data.
+While the workspace is open and the local link is authenticated, it requests a fresh operator context at a bounded interval. The request uses the existing ADR-011 `OPERATOR_CONTEXT_REQUEST` protocol; no new wire message or authority mechanism is introduced.
 
-A terminal treats this notification only as a reason to request a fresh measured operator context. It is not itself authority and cannot activate a session.
-
-This allows a terminal whose staff session was superseded under ADR-015 to remove stale controls promptly when its next context request is rejected.
-
-### 3. Periodic context revalidation is a fallback, not synchronization authority
-
-While the workspace is open, it requests a fresh operator context at a bounded interval. This provides a fallback for missed invalidation notifications and locally detects session expiry through the already verified terminal session coordinator.
+This revalidation provides a backstop for session expiry, same-staff supersession under ADR-015, and other authority changes which do not create an operational event. A superseded session is rejected by the Hub on the next context request and the stale controls are removed.
 
 The periodic request never substitutes for event delivery, durable cloud acknowledgement, or the Hub ledger. `EVENT_COMMITTED` remains the immediate task-data refresh signal for operational changes.
 
-### 4. Every final Hub command result remeasures context
+### 3. Every final Hub command result remeasures context
 
 `APPLIED`, `DUPLICATE`, and `REJECTED` are final Hub outcomes for the submitted terminal command. After any of those outcomes, the workspace requests a fresh operator context.
 
@@ -41,15 +37,18 @@ The periodic request never substitutes for event delivery, durable cloud acknowl
 - `REJECTED` refreshes so a business conflict shows current tasks and an authority rejection collapses the workspace to session-required state.
 - `UNAVAILABLE` retains the exact pending signed intent and does not pretend the command is final.
 
-### 5. Failed context revalidation safe-stops the workspace
+### 4. Failed context revalidation safe-stops the workspace
 
 When a fresh operator-context request fails, the current role projection and action controls are removed before the terminal offers native sign-in again. Previously rendered data is not left on screen as current authority.
 
+A completed native sign-in also starts with a fresh empty unsent Cashier basket before the new operator context is requested, so ephemeral order-entry state is not carried across staff-session replacement.
+
 ## Consequences
 
-- A superseded Cashier, Kitchen, or Manager session loses visible operational controls promptly as well as mutation authority.
+- A superseded Cashier, Kitchen, or Manager session loses visible operational controls within the bounded local revalidation interval even when no operational event is emitted.
 - A disconnected terminal no longer presents cached task controls as live while rediscovering the Hub.
 - Exact retry remains intact for an unavailable command result.
+- The local-link protocol stays backward-compatible; unsupported-message fail-closed behavior remains unchanged.
 - No browser authority, new database, new migration, or new secret-bearing message is introduced.
 - The Hub remains the only source of terminal task context and local command authority.
 
@@ -58,10 +57,10 @@ When a fresh operator-context request fails, the current role projection and act
 R025 must prove at source level that:
 
 - all non-authenticated local-link states clear the rendered terminal context;
-- the Hub emits only a non-secret `AUTHORITY_CHANGED` invalidation after verified staff-session installation;
-- the terminal maps that message to a fresh context request rather than to session activation;
-- the open workspace performs bounded periodic context revalidation;
-- `APPLIED`, `DUPLICATE`, and `REJECTED` all trigger context remeasurement while `UNAVAILABLE` retains exact retry behavior; and
+- the open workspace performs bounded periodic context revalidation through the existing `OPERATOR_CONTEXT_REQUEST` path;
+- completed native sign-in clears ephemeral unsent Cashier basket state before loading the new operator context;
+- `APPLIED`, `DUPLICATE`, and `REJECTED` all trigger context remeasurement while `UNAVAILABLE` retains exact retry behavior;
+- no new unsolicited local-link message type is introduced for this hardening; and
 - release status remains `HOLD` until the behavior is exercised on multiple physical Android devices.
 
 This ADR is source-level hardening only. It does not prove live LAN/Wi-Fi Direct delivery, real expiry timing, cloud revocation propagation, or physical multi-device safe-stop behavior.
