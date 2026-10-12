@@ -374,12 +374,13 @@ class HubDatabase(private val context: Context, private val keys: HubKeyManager)
                     throw HubCommandRejectedException("A revoked terminal staff session cannot be reactivated locally.")
                 }
             } else {
-                // A terminal has one active local operator. Retain prior rows
-                // for their receipt/event references, but mark them revoked so
-                // an assertion replay cannot keep an earlier operator active.
+                // Mirror R014 locally: a terminal and a staff member each have
+                // at most one active operational session on this Hub. Retain
+                // prior rows for receipt/event references, but revoke their
+                // authority atomically before the new session is installed.
                 db.execSQL(
-                    "UPDATE staff_sessions SET revoked_at = ? WHERE device_id = ? AND session_id <> ? AND revoked_at IS NULL",
-                    arrayOf(installedAt, assertion.terminalDeviceId, assertion.sessionId)
+                    "UPDATE staff_sessions SET revoked_at = ? WHERE (device_id = ? OR staff_id = ?) AND session_id <> ? AND revoked_at IS NULL",
+                    arrayOf(installedAt, assertion.terminalDeviceId, assertion.staffId, assertion.sessionId)
                 )
                 db.execSQL(
                     """
