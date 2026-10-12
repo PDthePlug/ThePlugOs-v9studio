@@ -17,7 +17,7 @@ describe('MarketingLanding', () => {
     expect(screen.getByText('Every person sees the work that belongs to them.')).toBeDefined();
   });
 
-  it('routes each primary action to the existing access flow', () => {
+  it('routes owner, business-setup and staff entry through their intended access flows', () => {
     const onSignIn = vi.fn();
     const onCreateBusiness = vi.fn();
 
@@ -28,9 +28,14 @@ describe('MarketingLanding', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open ThePlugOS' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Owner sign in' })[0]);
     fireEvent.click(screen.getByRole('button', { name: /Set up my business/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in to manage your business' }));
+    fireEvent.click(screen.getByRole('button', { name: 'I’m staff' }));
+
+    expect(screen.getByRole('dialog', { name: 'Start your shift on your shop device.' })).toBeDefined();
+    expect(screen.getByText(/Staff PINs are never entered into the public website or owner portal/i)).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'I’m the owner instead' }));
 
     expect(onSignIn).toHaveBeenCalledTimes(2);
     expect(onCreateBusiness).toHaveBeenCalledOnce();
