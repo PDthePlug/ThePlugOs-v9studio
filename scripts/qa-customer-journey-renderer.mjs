@@ -224,7 +224,7 @@ try {
   await owner.getByRole('button', { name: 'Team & access', exact: true }).click();
   await owner.getByRole('heading', { name: 'Staff profiles and PIN recovery', exact: true }).waitFor();
   await owner.getByLabel('Name', { exact: true }).fill('Nomsa');
-  await owner.getByLabel('Role', { exact: true }).selectOption('KITCHEN_STAFF');
+  await owner.getByRole('combobox', { name: 'Role' }).selectOption('KITCHEN_STAFF');
   await owner.getByRole('button', { name: 'Add staff profile', exact: true }).click();
   await owner.getByText(/Nomsa was added as Kitchen/i).waitFor();
   await shot(owner, '14-owner-team-access');
