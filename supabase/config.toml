@@ -1,10 +1,12 @@
-# Native Hub endpoints authenticate with a signed device proof, not a browser
-# Supabase JWT.  JWT verification must therefore be disabled *only* for these
-# three endpoints; each handler performs strict request, proof, scope, and
-# service-RPC validation before it mutates any server fact.
+# Native Hub/terminal endpoints authenticate with signed device proof rather
+# than a browser Supabase JWT. Platform JWT verification is therefore disabled
+# only for the six explicitly reviewed native-proof receivers below; every one
+# must independently validate bounded input, fresh proof, device/business scope,
+# and service-only RPC results before it can mutate a server fact.
 #
-# This config is staging-only until the R001 clone and R002/R003 rehearsals are
-# accepted. It is not deployment authorization.
+# The browser owner endpoint is the only Function in this set that accepts a
+# normal Supabase user JWT and therefore retains platform JWT verification.
+# This file describes authentication mode; it is not deployment authorization.
 
 [functions.hub-enrollment]
 verify_jwt = false
@@ -21,7 +23,7 @@ verify_jwt = false
 verify_jwt = false
 
 # A branch terminal proves possession of its Android Keystore key against a
-# short-lived owner-issued code.  It has no browser Origin and no Supabase JWT;
+# short-lived owner-issued code. It has no browser Origin and no Supabase JWT;
 # the handler validates request bounds, rate limits, signed proof, scope, and
 # service-only RPC results before it stores any authority fact.
 [functions.hub-terminal-enrollment]
@@ -29,7 +31,7 @@ verify_jwt = false
 
 # A terminal must prove its existing Android Keystore key, active signed
 # admission, branch/Hub binding, and a fresh native PIN. There is no browser
-# Origin or Supabase JWT in this path, so default JWT verification remains
+# Origin or Supabase JWT in this path, so platform JWT verification remains
 # disabled only while the receiver performs those checks itself.
 [functions.hub-terminal-staff-session]
 verify_jwt = false
