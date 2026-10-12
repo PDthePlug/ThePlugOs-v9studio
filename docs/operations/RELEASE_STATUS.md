@@ -49,13 +49,47 @@ The Android-native Cashier Hub remains the operational authority foundation.
 SQLCipher holds the local ledger, Android Keystore holds device keys, a signed
 authorization bundle establishes one branch authority, and cloud receivers are
 designed to replicate durable Hub events. Source-only R004/R005 add
-order-transition authority and a cash-shift/cash-capture path. The native
-Kitchen workflow can request only `PLACED -> PREPARING -> READY`; Cashier can
-request collection only after the required payment fact; Manager holds the
-source-only shift-close and counted-inventory receipt/correction/waste paths.
-Those capabilities do not by themselves demonstrate physical handover,
-printing, supplier/payment workflow, cash custody, remote Kitchen delivery, or
-cloud acknowledgement.
+order-transition authority and a cash-shift/cash-capture path.
+
+The source-only native Kitchen workflow can request the already-authorized
+`PLACED -> PREPARING -> READY` transitions through the Hub, but it does not
+demonstrate remote Kitchen, printer, notification, or physical delivery.
+
+The source-only Cashier collection workflow can request the existing
+`READY -> COLLECTED` transition only after the local cash-capture fact is
+present. It does not demonstrate physical handover, receipt printing, remote
+delivery, or cloud acknowledgement.
+
+The source-only Manager cash-shift-close workflow can record an explicit
+physical count and Hub-derived variance after pending orders are resolved. It
+does not demonstrate cash-up approval, bank deposit, printing, physical
+custody transfer, or cloud acknowledgement.
+
+The source-only Manager inventory-receipt workflow can record a physical
+counted quantity for active signed branch products. It does not demonstrate a
+supplier, purchase order, invoice, cost, payment, allocation, stock adjustment,
+or cloud acknowledgement.
+
+The source-only Manager inventory-count-correction workflow can record an
+observed final quantity for active signed branch products and derive the stock
+difference. It does not classify waste/loss, or demonstrate a supplier,
+purchase order, cost, payment, approval, or cloud acknowledgement.
+
+The source-only Manager inventory-waste workflow can record a positive unusable
+quantity for an active signed branch product with a bounded spoilage, damage,
+or expiry reason. It does not demonstrate a supplier claim, cost, tax, cash,
+financial-loss calculation, disposal certificate, approval, or cloud
+acknowledgement.
+
+The source-only native pending-order-cancellation workflow exposes only the
+already-authorized `PENDING` cancellation transitions for Cashier/Manager
+roles. It does not demonstrate a refund, cash reversal, return, or cloud
+acknowledgement.
+
+The Android host now has a source-only native station-entry and local
+session-end path that does not borrow an Owner browser session. This does not
+constitute a cloud logout, a hardware acceptance result, or a production
+release claim.
 
 The source contains owner-controlled Hub/terminal pairing, admission renewal and
 revocation, native local-link discovery, TLS certificate pinning, fresh terminal
