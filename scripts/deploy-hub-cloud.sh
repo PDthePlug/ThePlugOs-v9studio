@@ -58,6 +58,7 @@ require_release_source() {
   node scripts/test-r020-owner-signup-contract.mjs
   node scripts/test-r021-legacy-browser-retirement-contract.mjs
   node scripts/test-r029-owner-control-plane-rls-contract.mjs
+  node scripts/test-r030-staging-backend-rehearsal-contract.mjs
   node scripts/verify-production-migration-ledger.mjs --emit-fingerprint >/dev/null
 }
 
