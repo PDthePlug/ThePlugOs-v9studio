@@ -94,8 +94,8 @@ interface OwnerContext {
 }
 
 /** Routes a role only after the Android Hub returns a verified native
- * operator context. This shell is intentionally reusable without Owner cloud
- * authentication for the installed Capacitor host. */
+ * operator context. In a normal browser the same presentation shell renders
+ * the owner cloud dashboard, never a staff-operational workspace. */
 function NativeStationAccess({
   staffList = [],
   branches = [],
@@ -103,6 +103,8 @@ function NativeStationAccess({
   branchId,
   onSelectBranch,
   onBrowserSignOut,
+  browserSetupPending = false,
+  onResumeSetup,
 }: {
   staffList?: StaffMember[];
   branches?: Branch[];
@@ -110,7 +112,10 @@ function NativeStationAccess({
   branchId?: string;
   onSelectBranch?: (branchId: string) => void;
   onBrowserSignOut?: () => void;
+  browserSetupPending?: boolean;
+  onResumeSetup?: () => void;
 }) {
+  const nativeHost = hasNativeHubHost();
   const [showNativeStation, setShowNativeStation] = useState(false);
   const [nativeStationRole, setNativeStationRole] = useState<NativeHubOperatorContext['role'] | null>(null);
 
@@ -142,27 +147,40 @@ function NativeStationAccess({
 
   return (
     <Suspense fallback={<OperatingSurfaceLoading />}>
-      <RoleLoginModal
-        staffList={staffList}
-        branches={branches}
-        businessId={businessId}
-        branchId={branchId}
-        onSelectBranch={onSelectBranch}
-        onOpenNativeStation={(role) => {
-          setNativeStationRole(role);
-          setShowNativeStation(true);
-        }}
-        onSignOut={onBrowserSignOut}
-      />
+      <div className={!nativeHost && browserSetupPending ? 'pb-32' : undefined}>
+        <RoleLoginModal
+          staffList={staffList}
+          branches={branches}
+          businessId={businessId}
+          branchId={branchId}
+          onSelectBranch={onSelectBranch}
+          onOpenNativeStation={(role) => {
+            setNativeStationRole(role);
+            setShowNativeStation(true);
+          }}
+          onSignOut={onBrowserSignOut}
+        />
+      </div>
+      {!nativeHost && browserSetupPending && onResumeSetup && (
+        <aside className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-2xl flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-2xl sm:flex-row sm:items-center sm:justify-between" role="status">
+          <div>
+            <strong className="block text-sm">Shop setup is still in progress</strong>
+            <span className="mt-1 block text-xs leading-5 text-amber-800">You can manage the owner dashboard now, but live trading stays locked until the secured shop setup is confirmed.</span>
+          </div>
+          <button type="button" onClick={onResumeSetup} className="min-h-11 shrink-0 rounded-xl bg-amber-500 px-4 py-2 text-sm font-black text-slate-950 hover:bg-amber-400">
+            Resume setup
+          </button>
+        </aside>
+      )}
     </Suspense>
   );
 }
 
 /**
- * The web entry point is intentionally an owner-only, read-only cloud shell.
- * It does not mount the legacy operational workspaces, restore browser-held
- * role state, or call a mutation path. Those workflows re-enter only after
- * the native Hub exposes an authenticated staff-session and command bridge.
+ * The web entry point is intentionally an owner-only cloud shell. It does not
+ * mount the legacy operational workspaces or restore browser-held staff role
+ * state. Native operational workflows re-enter only after the Hub exposes an
+ * authenticated staff-session and command bridge.
  */
 function MainOSApp() {
   const [businessAuth, setBusinessAuth] = useState<BusinessAuthSession | null>(null);
@@ -171,6 +189,7 @@ function MainOSApp() {
   const [ownerBusinessChoices, setOwnerBusinessChoices] = useState<OwnerBusinessChoice[]>([]);
   const [ownerSelectionOwnerId, setOwnerSelectionOwnerId] = useState<string | null>(null);
   const [unboundOwnerId, setUnboundOwnerId] = useState<string | null>(null);
+  const [ownerSetupPending, setOwnerSetupPending] = useState(false);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
   const [ownerAccessError, setOwnerAccessError] = useState<string | null>(null);
   const reconciledOwnerIdRef = useRef<string | null>(null);
@@ -187,6 +206,7 @@ function MainOSApp() {
     setOwnerBusinessChoices([]);
     setOwnerSelectionOwnerId(null);
     setUnboundOwnerId(null);
+    setOwnerSetupPending(false);
     setShowSetupWizard(false);
     setOwnerAccessError(null);
   }, []);
@@ -307,11 +327,13 @@ function MainOSApp() {
         ownerId: candidate.ownerId,
         isOwner: true,
       };
+      const setupPending = context.business.onboarding_status !== 'COMPLETED';
 
       setBusinessAuth(resolvedAuth);
       setBranches(context.branches);
       setStaffList(context.staff);
-      setShowSetupWizard(context.business.onboarding_status !== 'COMPLETED');
+      setOwnerSetupPending(setupPending);
+      setShowSetupWizard(setupPending);
     } catch {
       clearBrowserContext();
       setOwnerAccessError('The owner business foundation could not be verified. No browser operational workspace was opened.');
@@ -339,6 +361,7 @@ function MainOSApp() {
       setBusinessAuth(null);
       setBranches([]);
       setStaffList([]);
+      setOwnerSetupPending(false);
       setShowSetupWizard(false);
       setOwnerSelectionOwnerId(null);
       setUnboundOwnerId(null);
@@ -448,6 +471,7 @@ function MainOSApp() {
             isOwner: true,
             ownerId: businessAuth.ownerId,
           }}
+          onOpenOwnerDashboard={() => setShowSetupWizard(false)}
           onSignOut={() => void signOut()}
         />
       </Suspense>
@@ -462,6 +486,8 @@ function MainOSApp() {
       branchId={businessAuth.branchId}
       onSelectBranch={selectOwnerBranch}
       onBrowserSignOut={() => void signOut()}
+      browserSetupPending={ownerSetupPending}
+      onResumeSetup={() => setShowSetupWizard(true)}
     />
   );
 }
