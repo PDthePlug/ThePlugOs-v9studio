@@ -67,9 +67,11 @@ const [
   sessionEndpoint,
   syncEndpoint,
   terminalEndpoint,
+  terminalStaffEndpoint,
   resetEndpoint,
   config,
   deployScript,
+  stagingApplicator,
   issuerKeyVerifier,
   productionLedger,
   cloudManifest,
@@ -86,9 +88,11 @@ const [
   load('supabase/functions/hub-staff-session/index.ts'),
   load('supabase/functions/hub-sync/index.ts'),
   load('supabase/functions/hub-terminal-enrollment/index.ts'),
+  load('supabase/functions/hub-terminal-staff-session/index.ts'),
   load('supabase/functions/hub-staff-credential-reset/index.ts'),
   load('supabase/config.toml'),
   load('scripts/deploy-hub-cloud.sh'),
+  load('scripts/apply-staging-schema.mjs'),
   load('scripts/verify-issuer-key-configuration.mjs'),
   load('supabase/production/iwbbwcaylpulcpvbfkdx-r001a-r013-ledger.json'),
   load('docs/operations/PRODUCTION_CLOUD_CONFIGURATION_MANIFEST.md'),
@@ -117,7 +121,15 @@ assert.match(edgeShared, /platformPublishableKey/);
 assert.match(edgeShared, /platformServiceKey/);
 assert.match(ownerEndpoint, /platformPublishableKey\(\)/);
 
-for (const endpoint of [ownerEndpoint, enrollmentEndpoint, sessionEndpoint, syncEndpoint, terminalEndpoint, resetEndpoint]) {
+for (const endpoint of [
+  ownerEndpoint,
+  enrollmentEndpoint,
+  sessionEndpoint,
+  syncEndpoint,
+  terminalEndpoint,
+  terminalStaffEndpoint,
+  resetEndpoint,
+]) {
   assert.match(endpoint, /platformServiceKey\(\)/, 'Every service-only Edge client must use the shared modern-key resolver.');
 }
 
@@ -127,6 +139,7 @@ for (const nativeFunction of [
   'hub-staff-credential-reset',
   'hub-sync',
   'hub-terminal-enrollment',
+  'hub-terminal-staff-session',
 ]) {
   const start = config.indexOf(`[functions.${nativeFunction}]`);
   const next = config.indexOf('[functions.', start + 1);
@@ -141,6 +154,12 @@ assert.match(deployScript, /must be an integer from 15 through 720/);
 assert.match(deployScript, /HUB_AUTHORIZATION_BUNDLE_TTL_MINUTES=\$HUB_AUTHORIZATION_BUNDLE_TTL_MINUTES/);
 assert.match(deployScript, /THEPLUGOS_PRODUCTION_MIGRATION_LEDGER_SHA256/);
 assert.match(deployScript, /THEPLUGOS_REMOTE_MIGRATION_LEDGER_CONFIRM/);
+assert.match(deployScript, /--rehearse-staging/);
+assert.match(deployScript, /hold-staging-rehearsal/);
+assert.match(deployScript, /THEPLUGOS_STAGING_DATABASE_URL/);
+assert.match(deployScript, /THEPLUGOS_STAGING_SCHEMA_CONFIRM/);
+assert.match(deployScript, /THEPLUGOS_STAGING_REHEARSAL_CONFIRM/);
+assert.match(deployScript, /apply-staging-schema\.mjs --apply/);
 assert.match(deployScript, /--configure-production-functions/);
 assert.match(deployScript, /THEPLUGOS_FUNCTION_CONFIGURATION_CONFIRM/);
 assert.match(deployScript, /HUB_AUTHORIZATION_ISSUER_PUBLIC_KEY_BASE64/);
@@ -148,11 +167,21 @@ assert.match(deployScript, /verify-issuer-key-configuration\.mjs/);
 assert.match(deployScript, /require_hold_release/);
 assert.match(deployScript, /configure-functions:production/);
 assert.match(deployScript, /iwbbwcaylpulcpvbfkdx/);
+assert.match(deployScript, /dpqtgfxovmiwzkiuzoya/);
 assert.match(deployScript, /test-r016-cloud-configuration-contract\.mjs/);
 assert.match(deployScript, /verify-production-migration-ledger\.mjs/);
 assert.match(deployScript, /THEPLUGOS_DEPLOYMENT_ENV}" == "production"/);
-assert.match(deployScript, /THEPLUGOS_DEPLOYMENT_ENV}" == "staging"/);
-assert.ok(!deployScript.includes('supabase db push --project-ref "$SUPABASE_PROJECT_REF"\n\nfor function_name'), 'Production deployment must not blindly replay the recorded schema baseline.');
+assert.match(deployScript, /THEPLUGOS_DEPLOYMENT_ENV}" != "staging"/);
+assert.match(deployScript, /hub-terminal-staff-session/);
+assert.ok(!deployScript.includes('supabase db push'), 'The guarded deployment path must not depend on CLI migration discovery or replay production migration history.');
+assert.ok(
+  deployScript.indexOf('node scripts/apply-staging-schema.mjs --apply') < deployScript.indexOf('supabase secrets set'),
+  'Staging schema must apply and verify before Function secrets or code are published.',
+);
+assert.match(stagingApplicator, /001a_retire_unsupported_legacy_staff_pins\.sql/);
+assert.match(stagingApplicator, /014_terminal_staff_session_and_command_authority\.sql/);
+assert.match(stagingApplicator, /015_owner_control_plane_rls_hardening\.sql/);
+assert.match(stagingApplicator, /rejectUnauthorized: true/);
 assert.match(releaseStatus, /\*\*Status:\*\* HOLD/, 'Cloud configuration must not silently grant product-release authority.');
 assert.match(adr, /malformed key map/);
 assert.match(adr, /HUB_AUTHORIZATION_BUNDLE_TTL_MINUTES/);
@@ -174,6 +203,14 @@ for (const requiredConfiguration of [
 }
 
 execFileSync('bash', ['-n', resolve(root, 'scripts/deploy-hub-cloud.sh')], { stdio: 'pipe' });
+const plan = JSON.parse(execFileSync(
+  process.execPath,
+  [resolve(root, 'scripts/apply-staging-schema.mjs'), '--plan'],
+  { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+));
+assert.equal(plan.includesNonCliMigration, '001a_retire_unsupported_legacy_staff_pins.sql', 'Staging plan must explicitly retain R001A.');
+assert.equal(plan.finalSchema, '015_owner_control_plane_rls_hardening.sql', 'Staging plan must advance through R015.');
+
 const ledgerFingerprint = execFileSync(
   process.execPath,
   [resolve(root, 'scripts/verify-production-migration-ledger.mjs'), '--project-ref', 'iwbbwcaylpulcpvbfkdx', '--emit-fingerprint'],
