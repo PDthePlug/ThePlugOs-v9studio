@@ -13,6 +13,7 @@ const [
   packageSource,
   adr,
   workspace,
+  signIn,
   terminalProtocol,
   terminalCommands,
   hubVerifier,
@@ -24,6 +25,7 @@ const [
   load('package.json'),
   load('docs/architecture/ADR-016_TERMINAL_WORKSPACE_SAFE_STOP_AND_AUTHORITY_REVALIDATION.md'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalOperationalWorkspaceActivity.kt'),
+  load('android/app/src/main/java/com/theplugos/cashierhub/native/NativeTerminalStaffSignInActivity.kt'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/TerminalOperatorContextProtocol.kt'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/TerminalOperationalCommandClient.kt'),
   load('android/app/src/main/java/com/theplugos/cashierhub/native/HubCommandVerifier.kt'),
@@ -62,6 +64,21 @@ const safeStopIndex = workspace.indexOf('// ADR-011/ADR-016 safe-stop');
 assert.ok(authenticatedIndex >= 0 && safeStopIndex > authenticatedIndex, 'Every non-authenticated local-link state must enter the safe-stop branch.');
 requireText(workspace.slice(safeStopIndex, safeStopIndex + 500), 'context = null');
 requireText(workspace.slice(safeStopIndex, safeStopIndex + 500), 'taskRoot.removeAllViews()');
+
+// The native PIN surface must re-measure its role-filtered roster after a
+// local-link reconnect instead of remaining disabled behind stale request state.
+requireText(signIn, 'snapshot.state == TerminalLocalLinkState.AUTHENTICATED && !directoryRequested');
+const signInDisconnect = signIn.indexOf('snapshot.state !in setOf(TerminalLocalLinkState.AUTHENTICATED, TerminalLocalLinkState.STAFF_SESSION_ACTIVE)');
+assert.ok(signInDisconnect >= 0, 'Native sign-in must handle every non-authenticated local-link state.');
+const disconnectWindow = signIn.slice(signInDisconnect, signInDisconnect + 900);
+for (const fragment of [
+  'directoryRequested = false',
+  'staff = emptyList()',
+  'staffSpinner.isEnabled = false',
+  'pin.isEnabled = false',
+  'signIn.isEnabled = false',
+]) requireText(disconnectWindow, fragment, `Native sign-in reconnect reset must retain: ${fragment}`);
+requireText(signIn, 'controller.requestTerminalStaffDirectory');
 
 // Keep the wire protocol backward-compatible: revalidation reuses OPERATOR_CONTEXT_REQUEST.
 requireText(localLink, '"OPERATOR_CONTEXT_REQUEST"');
@@ -102,6 +119,7 @@ for (const phrase of [
   'Non-authenticated link state invalidates rendered operational context',
   'Periodic authenticated context revalidation detects expiry and supersession',
   'Every final Hub command result remeasures context',
+  'Native PIN roster is remeasured after local-link reconnect',
   'physical multi-device evidence pending',
 ]) requireText(adr, phrase);
 assert.match(releaseStatus, /\*\*Status:\*\* HOLD/, 'Role-session lifecycle hardening must not grant release authority.');
