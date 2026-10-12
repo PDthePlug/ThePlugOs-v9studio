@@ -11,6 +11,8 @@ ADR-011 requires a disconnected or expired terminal to render unavailable rather
 
 A terminal can hold a previously measured role context while the local link re-enters discovery. It can also keep that context visible after the same staff member signs in on another terminal until the old terminal next requests context or attempts a command. Those stale controls do not bypass Hub authorization, but they violate the intended safe-stop experience and make cross-device session replacement look inconsistent.
 
+The native PIN surface has the same freshness requirement for its role-filtered staff roster. If an authenticated link is lost after the roster has been loaded, a reconnect must not reuse the old request state or leave the selector permanently disabled. The roster must be measured again from the newly authenticated Hub connection.
+
 The existing terminal wire protocol intentionally rejects unsupported message types. This hardening therefore must not introduce a new unsolicited message that could force an older terminal peer to drop an otherwise authenticated connection.
 
 ## Decision
@@ -43,10 +45,19 @@ When a fresh operator-context request fails, the current role projection and act
 
 A completed native sign-in also starts with a fresh empty unsent Cashier basket before the new operator context is requested, so ephemeral order-entry state is not carried across staff-session replacement.
 
+### 5. Native PIN roster is remeasured after local-link reconnect
+
+The native staff sign-in surface disables its staff selector, PIN entry, and submit action whenever the local link is not authenticated. At that same boundary it discards the previously measured in-memory roster and marks the directory request as incomplete.
+
+When the terminal authenticates to the Hub again, it requests a fresh role-filtered staff directory before re-enabling PIN entry. A roster measured on an earlier local-link connection is never reused as the active selector after reconnect.
+
+This is an availability and freshness rule, not a new credential mechanism. Staff PIN verification remains native/cloud proof-bound under ADR-010, and the directory remains a non-secret convenience projection rather than session authority.
+
 ## Consequences
 
 - A superseded Cashier, Kitchen, or Manager session loses visible operational controls within the bounded local revalidation interval even when no operational event is emitted.
 - A disconnected terminal no longer presents cached task controls as live while rediscovering the Hub.
+- A role-based PIN screen recovers cleanly after local-link loss instead of remaining stuck with a stale request state.
 - Exact retry remains intact for an unavailable command result.
 - The local-link protocol stays backward-compatible; unsupported-message fail-closed behavior remains unchanged.
 - No browser authority, new database, new migration, or new secret-bearing message is introduced.
@@ -60,6 +71,7 @@ R025 must prove at source level that:
 - the open workspace performs bounded periodic context revalidation through the existing `OPERATOR_CONTEXT_REQUEST` path;
 - completed native sign-in clears ephemeral unsent Cashier basket state before loading the new operator context;
 - `APPLIED`, `DUPLICATE`, and `REJECTED` all trigger context remeasurement while `UNAVAILABLE` retains exact retry behavior;
+- a non-authenticated native sign-in link clears the old staff roster/request state so re-authentication performs a fresh role-filtered directory request;
 - no new unsolicited local-link message type is introduced for this hardening; and
 - release status remains `HOLD` until the behavior is exercised on multiple physical Android devices.
 
