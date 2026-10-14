@@ -58,16 +58,29 @@ for (const fragment of [
   'r016_prepared_session_index',
 ]) assert.ok(verifier.includes(fragment), `Staging schema verifier missing ${fragment}`);
 
-for (const forbidden of [
+// Inspect executable query blocks rather than raw words. Policy names such as
+// “Owners can update catalog products...” legitimately contain DML vocabulary
+// while remaining string data inside a read-only SELECT.
+const queryBlocks = [...verifier.matchAll(/client\.query\(`([\s\S]*?)`\)/g)]
+  .map((match) => match[1].trim());
+assert.equal(queryBlocks.length, 2, 'The staging verifier must retain exactly two read-only database queries.');
+for (const query of queryBlocks) {
+  assert.match(query, /^select\b/i, 'Every staging-verifier database query must begin with SELECT.');
+  assert.doesNotMatch(
+    query,
+    /;\s*(?:insert|update|delete|create|alter|drop|truncate|merge)\b/i,
+    'A staging-verifier SELECT must not append a write statement.',
+  );
+}
+for (const forbiddenCall of [
   "client.query('begin')",
-  'insert into ',
-  'update ',
-  'delete from ',
-  'create table ',
-  'alter table ',
-  'drop table ',
+  'client.query("begin")',
+  "client.query('commit')",
+  'client.query("commit")',
+  "client.query('rollback')",
+  'client.query("rollback")',
 ]) {
-  assert.ok(!verifier.toLowerCase().includes(forbidden.toLowerCase()), `Verifier must remain read-only; found ${forbidden}`);
+  assert.ok(!verifier.toLowerCase().includes(forbiddenCall.toLowerCase()), `Verifier must remain transaction-free; found ${forbiddenCall}`);
 }
 
 console.log('R033 staging function configuration contract passed');
