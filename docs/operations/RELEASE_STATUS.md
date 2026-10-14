@@ -17,8 +17,7 @@
   R001A→R012 controlled remediation sequence in
   `docs/evidence/CONTROLLED_PRODUCTION_REMEDIATION_2026-08-26.md`; that
   database sequence and the additive R013 hardening migration are recorded as
-  completed, but product
-  release authority remains withheld
+  completed, but product release authority remains withheld
 
 ## What is true today
 
@@ -51,19 +50,60 @@ order-transition authority and a cash-shift/cash-capture path. Native Cashier,
 Kitchen and Manager workspaces are role-minimized and do not borrow browser
 owner authority.
 
+The source-only native Kitchen workflow can request the already-authorized
+`PLACED -> PREPARING -> READY` transitions through the Hub, but it does not
+demonstrate remote Kitchen, printer, notification, or physical delivery.
+
+The Android host now has a source-only native station-entry and local
+session-end path that does not borrow an Owner browser session. This does not
+constitute a cloud logout, a hardware acceptance result, or a production
+release claim.
+
+The source-only Cashier collection workflow can request the existing
+`READY -> COLLECTED` transition only after the local cash-capture fact is
+present. It does not demonstrate physical handover, receipt printing, remote
+delivery, or cloud acknowledgement.
+
+The source-only Manager cash-shift-close workflow can record an explicit
+physical count and Hub-derived variance after pending orders are resolved. It
+does not demonstrate cash-up approval, bank deposit, printing, physical
+custody transfer, or cloud acknowledgement.
+
+The source-only native pending-order-cancellation workflow exposes only the
+already-authorized `PENDING` cancellation transitions for Cashier/Manager
+roles. It does not demonstrate a refund, cash reversal, return, or cloud
+acknowledgement.
+
+The source-only Manager inventory-receipt workflow can record a physical
+counted quantity for active signed branch products. It does not demonstrate a
+supplier, purchase order, invoice, cost, payment, allocation, stock adjustment,
+or cloud acknowledgement.
+
+The source-only Manager inventory-count-correction workflow can record an
+observed final quantity for active signed branch products and derive the stock
+difference. It does not classify waste/loss, or demonstrate a supplier,
+purchase order, cost, payment, approval, or cloud acknowledgement.
+
+The source-only Manager inventory-waste workflow can record a positive unusable
+quantity for an active signed branch product with a bounded spoilage, damage,
+or expiry reason. It does not demonstrate a supplier claim, cost, tax, cash,
+financial-loss calculation, disposal certificate, approval, or cloud
+acknowledgement.
+
 The source contains owner-controlled Hub/terminal pairing, admission renewal and
 revocation, native local-link discovery, TLS certificate pinning, fresh terminal
 challenge proof, native PIN/session authority, same-staff cross-device
 supersession, restart binding, stale-authority safe-stop and reconnect
 revalidation. CI compilation/source gates are not physical-device evidence.
 
-R014 defines terminal staff-session/challenge authority and the
-`hub-terminal-staff-session` receiver. R015 removes the broad member-write
-policies and narrows browser staff/catalog writes to the owner control plane.
-R016 adds only the five covering indexes identified by the live staging
-performance advisor after R014; it changes no RLS policy, function, privilege,
-trigger or business authority fact. R014-R016 are **not** recorded as applied
-to production. The immutable recorded production ledger remains R001A-R013.
+Source migration R014 defines terminal staff-session/challenge authority and the
+`hub-terminal-staff-session` receiver. Source migration R015 removes the broad
+member-write policies and narrows browser staff/catalog writes to the owner
+control plane. R016 adds only the five covering indexes identified by the live
+staging performance advisor after R014; it changes no RLS policy, function,
+privilege, trigger or business authority fact. R014-R016 are **not** recorded as
+applied to production. The immutable recorded production ledger remains
+R001A-R013.
 
 ADR-012/R019 hardens source-only cloud batch acknowledgement handling: each
 receiver acknowledgement is bound to its own contiguous action-family group,
