@@ -181,6 +181,7 @@ assert.ok(
 assert.match(stagingApplicator, /001a_retire_unsupported_legacy_staff_pins\.sql/);
 assert.match(stagingApplicator, /014_terminal_staff_session_and_command_authority\.sql/);
 assert.match(stagingApplicator, /015_owner_control_plane_rls_hardening\.sql/);
+assert.match(stagingApplicator, /016_terminal_staff_session_index_hardening\.sql/);
 assert.match(stagingApplicator, /rejectUnauthorized: true/);
 assert.match(releaseStatus, /\*\*Status:\*\* HOLD/, 'Cloud configuration must not silently grant product-release authority.');
 assert.match(adr, /malformed key map/);
@@ -209,7 +210,7 @@ const plan = JSON.parse(execFileSync(
   { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
 ));
 assert.equal(plan.includesNonCliMigration, '001a_retire_unsupported_legacy_staff_pins.sql', 'Staging plan must explicitly retain R001A.');
-assert.equal(plan.finalSchema, '015_owner_control_plane_rls_hardening.sql', 'Staging plan must advance through R015.');
+assert.equal(plan.finalSchema, '016_terminal_staff_session_index_hardening.sql', 'Staging plan must advance through R016.');
 
 const ledgerFingerprint = execFileSync(
   process.execPath,
