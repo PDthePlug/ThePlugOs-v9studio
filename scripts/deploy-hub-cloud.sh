@@ -32,7 +32,7 @@ Usage:
 --rehearse-staging is a HOLD-preserving, staging-only evidence path. It refuses
 production and the preserved contaminated legacy staging project, requires an
 exact project/source/issuer acknowledgement, applies the canonical schema in
-explicit source order 001 -> 001A -> 002 ... 015 through the guarded Node
+explicit source order 001 -> 001A -> 002 ... 016 through the guarded Node
 applicator, sets staging Function secrets, and deploys all seven receivers.
 It does not change RELEASE_STATUS.md and cannot grant production release.
 
@@ -59,6 +59,8 @@ require_release_source() {
   node scripts/test-r021-legacy-browser-retirement-contract.mjs
   node scripts/test-r029-owner-control-plane-rls-contract.mjs
   node scripts/test-r030-staging-backend-rehearsal-contract.mjs
+  node scripts/test-r031-staging-secret-material-contract.mjs
+  node scripts/test-r032-terminal-session-index-hardening-contract.mjs
   node scripts/verify-production-migration-ledger.mjs --emit-fingerprint >/dev/null
 }
 
@@ -251,8 +253,9 @@ if ! command -v supabase >/dev/null 2>&1; then
 fi
 
 # Schema comes first in isolated staging so no receiver is published before the
-# exact RPCs and policies it depends on exist. The applicator refuses non-empty
-# targets and applies the non-CLI-named R001A migration explicitly in order.
+# exact RPCs, policies and supporting indexes it depends on exist. The
+# applicator refuses non-empty targets and applies the non-CLI-named R001A
+# migration explicitly in order.
 if [[ "${deployment_mode}" == "hold-staging-rehearsal" ]]; then
   node scripts/apply-staging-schema.mjs --apply --project-ref "$SUPABASE_PROJECT_REF"
 fi
@@ -269,7 +272,7 @@ supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" \
   "HUB_OWNER_PORTAL_ORIGIN=$HUB_OWNER_PORTAL_ORIGIN"
 
 # Production remains bound to the recorded R001A-R013 ledger. Until an accepted
-# production schema-advance record contains R014/R015, do not publish the
+# production schema-advance record contains R014-R016, do not publish the
 # terminal staff-session receiver there. Isolated staging receives all seven.
 function_names=(
   hub-enrollment
@@ -289,7 +292,7 @@ done
 
 case "${deployment_mode}" in
   hold-staging-rehearsal)
-    echo "Isolated staging schema 001-015 and all seven Hub receivers deployed for evidence rehearsal. Product release remains HOLD. Provision Android only with the matching public issuer-key map before hardware acceptance."
+    echo "Isolated staging schema 001-016 and all seven Hub receivers deployed for evidence rehearsal. Product release remains HOLD. Provision Android only with the matching public issuer-key map before hardware acceptance."
     ;;
   controlled-production-function-configuration)
     echo "Hub Functions configured for controlled production verification against the recorded R001A-R013 baseline. No schema migration was executed; product release remains HOLD."
