@@ -25,6 +25,7 @@ const orderedMigrations = [
   '013_production_schema_hardening.sql',
   '014_terminal_staff_session_and_command_authority.sql',
   '015_owner_control_plane_rls_hardening.sql',
+  '016_terminal_staff_session_index_hardening.sql',
 ];
 
 function fail(message, code = 64) {
@@ -43,7 +44,7 @@ if (mode === '--plan') {
     mode: 'staging-only',
     sourceOrder: orderedMigrations,
     includesNonCliMigration: '001a_retire_unsupported_legacy_staff_pins.sql',
-    finalSchema: '015_owner_control_plane_rls_hardening.sql',
+    finalSchema: '016_terminal_staff_session_index_hardening.sql',
   }, null, 2));
   process.exit(0);
 }
@@ -75,9 +76,9 @@ if (releaseCommit !== checkedCommit) fail('THEPLUGOS_RELEASE_COMMIT does not mat
 const dirtySource = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim();
 if (dirtySource) fail('The source tree is not clean; refusing to apply unreviewed migration contents.');
 const confirmation = process.env.THEPLUGOS_STAGING_SCHEMA_CONFIRM;
-const expectedConfirmation = `apply-empty-staging:${projectRef}:${checkedCommit}:001-015`;
+const expectedConfirmation = `apply-empty-staging:${projectRef}:${checkedCommit}:001-016`;
 if (confirmation !== expectedConfirmation) {
-  fail('THEPLUGOS_STAGING_SCHEMA_CONFIRM must exactly acknowledge the empty staging project, commit, and 001-015 schema order.');
+  fail('THEPLUGOS_STAGING_SCHEMA_CONFIRM must exactly acknowledge the empty staging project, commit, and 001-016 schema order.');
 }
 
 const client = new Client({
@@ -133,7 +134,12 @@ try {
         select 1 from pg_policies
         where schemaname = 'public' and tablename = 'staff_members'
           and cmd = 'UPDATE' and 'authenticated' = any(roles)
-      ) as r015_staff_update_denied
+      ) as r015_staff_update_denied,
+      to_regclass('public.idx_hub_terminal_staff_session_challenges_branch_id') is not null as r016_branch_index,
+      to_regclass('public.idx_hub_terminal_staff_session_challenges_business_id') is not null as r016_business_index,
+      to_regclass('public.idx_hub_terminal_staff_session_challenges_hub_device_id') is not null as r016_hub_index,
+      to_regclass('public.idx_hub_terminal_staff_session_challenges_prepared_session_id') is not null as r016_prepared_session_index,
+      to_regclass('public.idx_hub_terminal_staff_session_challenges_staff_id') is not null as r016_staff_index
   `);
   if (!Object.values(verification.rows[0]).every(Boolean)) {
     throw new Error(`Post-apply verification failed: ${JSON.stringify(verification.rows[0])}`);
