@@ -17,7 +17,8 @@
   R001A→R012 controlled remediation sequence in
   `docs/evidence/CONTROLLED_PRODUCTION_REMEDIATION_2026-08-26.md`; that
   database sequence and the additive R013 hardening migration are recorded as
-  completed, but product release authority remains withheld
+  completed, but product
+  release authority remains withheld
 
 ## What is true today
 
