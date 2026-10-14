@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Guarded deployment helper for ThePlugOS cloud authority.
 #
-# Remote mutation is split into three explicit paths:
+# Remote mutation is split into four explicit paths:
 #   * HOLD-preserving isolated staging rehearsal;
+#   * HOLD-preserving configuration-only staging Function deployment after a
+#     previously accepted R001-R016 schema rehearsal;
 #   * HOLD-preserving production Function configuration against the recorded
 #     R001A-R013 production schema baseline; and
 #   * final production deployment after release status is APPROVED.
@@ -24,6 +26,7 @@ usage() {
 Usage:
   scripts/deploy-hub-cloud.sh --verify-source
   scripts/deploy-hub-cloud.sh --rehearse-staging
+  scripts/deploy-hub-cloud.sh --configure-staging-functions
   scripts/deploy-hub-cloud.sh --configure-production-functions
   scripts/deploy-hub-cloud.sh --deploy
 
@@ -35,6 +38,12 @@ exact project/source/issuer acknowledgement, applies the canonical schema in
 explicit source order 001 -> 001A -> 002 ... 016 through the guarded Node
 applicator, sets staging Function secrets, and deploys all seven receivers.
 It does not change RELEASE_STATUS.md and cannot grant production release.
+
+--configure-staging-functions is the HOLD-preserving path for an already
+rehearsed staging database. It read-verifies the exact R001-R016 ledger and
+R014/R015/R016 authority state, executes no schema SQL, requires an exact
+project/source/schema/issuer acknowledgement, sets staging Function secrets,
+and deploys all seven receivers.
 
 --configure-production-functions is the ADR-009 HOLD-preserving production
 configuration window. It requires the exact recorded production project,
@@ -61,6 +70,7 @@ require_release_source() {
   node scripts/test-r030-staging-backend-rehearsal-contract.mjs
   node scripts/test-r031-staging-secret-material-contract.mjs
   node scripts/test-r032-terminal-session-index-hardening-contract.mjs
+  node scripts/test-r033-staging-function-configuration-contract.mjs
   node scripts/verify-production-migration-ledger.mjs --emit-fingerprint >/dev/null
 }
 
@@ -87,6 +97,9 @@ case "${1:-}" in
     ;;
   --rehearse-staging)
     deployment_mode="hold-staging-rehearsal"
+    ;;
+  --configure-staging-functions)
+    deployment_mode="controlled-staging-function-configuration"
     ;;
   --configure-production-functions)
     deployment_mode="controlled-production-function-configuration"
@@ -129,6 +142,12 @@ case "${deployment_mode}" in
       THEPLUGOS_STAGING_REHEARSAL_CONFIRM
     )
     ;;
+  controlled-staging-function-configuration)
+    required+=(
+      THEPLUGOS_STAGING_DATABASE_URL
+      THEPLUGOS_STAGING_FUNCTION_CONFIGURATION_CONFIRM
+    )
+    ;;
   controlled-production-function-configuration)
     required+=(THEPLUGOS_FUNCTION_CONFIGURATION_CONFIRM)
     ;;
@@ -149,13 +168,16 @@ if [[ "${THEPLUGOS_DEPLOYMENT_ENV}" != "staging" && "${THEPLUGOS_DEPLOYMENT_ENV}
   exit 64
 fi
 
-if [[ "${deployment_mode}" == "hold-staging-rehearsal" && "${THEPLUGOS_DEPLOYMENT_ENV}" != "staging" ]]; then
-  echo "--rehearse-staging requires THEPLUGOS_DEPLOYMENT_ENV=staging." >&2
-  exit 64
-fi
-if [[ "${deployment_mode}" != "hold-staging-rehearsal" && "${THEPLUGOS_DEPLOYMENT_ENV}" != "production" ]]; then
-  echo "Production configuration/release modes require THEPLUGOS_DEPLOYMENT_ENV=production." >&2
-  exit 64
+if [[ "${deployment_mode}" == "hold-staging-rehearsal" || "${deployment_mode}" == "controlled-staging-function-configuration" ]]; then
+  if [[ "${THEPLUGOS_DEPLOYMENT_ENV}" != "staging" ]]; then
+    echo "Staging modes require THEPLUGOS_DEPLOYMENT_ENV=staging." >&2
+    exit 64
+  fi
+else
+  if [[ "${THEPLUGOS_DEPLOYMENT_ENV}" != "production" ]]; then
+    echo "Production configuration/release modes require THEPLUGOS_DEPLOYMENT_ENV=production." >&2
+    exit 64
+  fi
 fi
 
 if [[ ! "${SUPABASE_PROJECT_REF}" =~ ^[a-z0-9]{20}$ ]] || [[ "${SUPABASE_PROJECT_REF}" != "${THEPLUGOS_EXPECTED_PROJECT_REF}" ]]; then
@@ -163,13 +185,13 @@ if [[ ! "${SUPABASE_PROJECT_REF}" =~ ^[a-z0-9]{20}$ ]] || [[ "${SUPABASE_PROJECT
   exit 64
 fi
 
-if [[ "${deployment_mode}" == "hold-staging-rehearsal" ]]; then
+if [[ "${deployment_mode}" == "hold-staging-rehearsal" || "${deployment_mode}" == "controlled-staging-function-configuration" ]]; then
   if [[ "${SUPABASE_PROJECT_REF}" == "${production_project_ref}" ]]; then
-    echo "The staging rehearsal refuses the production project." >&2
+    echo "Staging modes refuse the production project." >&2
     exit 78
   fi
   if [[ "${SUPABASE_PROJECT_REF}" == "${contaminated_legacy_staging_ref}" ]]; then
-    echo "The staging rehearsal refuses the preserved contaminated legacy staging project." >&2
+    echo "Staging modes refuse the preserved contaminated legacy staging project." >&2
     exit 78
   fi
 else
@@ -205,7 +227,17 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 issuer_key_fingerprint="$(node scripts/verify-issuer-key-configuration.mjs --emit-fingerprint)"
+staging_schema_fingerprint=""
 ledger_fingerprint=""
+
+if [[ "${deployment_mode}" == "controlled-staging-function-configuration" ]]; then
+  staging_schema_fingerprint="$(node scripts/verify-staging-schema-state.mjs --project-ref "$SUPABASE_PROJECT_REF" --emit-fingerprint)"
+  if [[ ! "${staging_schema_fingerprint}" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "Staging schema verifier did not return a valid fingerprint." >&2
+    exit 64
+  fi
+fi
+
 if [[ "${THEPLUGOS_DEPLOYMENT_ENV}" == "production" ]]; then
   if [[ -z "${THEPLUGOS_PRODUCTION_MIGRATION_LEDGER_SHA256:-}" || -z "${THEPLUGOS_REMOTE_MIGRATION_LEDGER_CONFIRM:-}" ]]; then
     echo "Production Function deployment requires a verified production migration ledger acknowledgement." >&2
@@ -231,6 +263,13 @@ case "${deployment_mode}" in
       exit 64
     fi
     ;;
+  controlled-staging-function-configuration)
+    expected_staging_configuration_confirmation="configure-functions:staging:${SUPABASE_PROJECT_REF}:${checked_commit}:${staging_schema_fingerprint}:${issuer_key_fingerprint}"
+    if [[ "${THEPLUGOS_STAGING_FUNCTION_CONFIGURATION_CONFIRM}" != "${expected_staging_configuration_confirmation}" ]]; then
+      echo "THEPLUGOS_STAGING_FUNCTION_CONFIGURATION_CONFIRM must exactly acknowledge the staging project, source, verified schema, and issuer public key." >&2
+      exit 64
+    fi
+    ;;
   controlled-production-function-configuration)
     expected_configuration_confirmation="configure-functions:production:${SUPABASE_PROJECT_REF}:${checked_commit}:${ledger_fingerprint}:${issuer_key_fingerprint}"
     if [[ "${THEPLUGOS_FUNCTION_CONFIGURATION_CONFIRM}" != "${expected_configuration_confirmation}" ]]; then
@@ -252,10 +291,9 @@ if ! command -v supabase >/dev/null 2>&1; then
   exit 69
 fi
 
-# Schema comes first in isolated staging so no receiver is published before the
-# exact RPCs, policies and supporting indexes it depends on exist. The
-# applicator refuses non-empty targets and applies the non-CLI-named R001A
-# migration explicitly in order.
+# Schema comes first only in a fresh isolated rehearsal. Configuration-only
+# staging verifies the accepted live ledger above and deliberately executes no
+# migration SQL.
 if [[ "${deployment_mode}" == "hold-staging-rehearsal" ]]; then
   node scripts/apply-staging-schema.mjs --apply --project-ref "$SUPABASE_PROJECT_REF"
 fi
@@ -273,7 +311,7 @@ supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" \
 
 # Production remains bound to the recorded R001A-R013 ledger. Until an accepted
 # production schema-advance record contains R014-R016, do not publish the
-# terminal staff-session receiver there. Isolated staging receives all seven.
+# terminal staff-session receiver there. Both staging modes receive all seven.
 function_names=(
   hub-enrollment
   hub-owner-enrollment
@@ -282,7 +320,7 @@ function_names=(
   hub-staff-credential-reset
   hub-sync
 )
-if [[ "${deployment_mode}" == "hold-staging-rehearsal" ]]; then
+if [[ "${deployment_mode}" == "hold-staging-rehearsal" || "${deployment_mode}" == "controlled-staging-function-configuration" ]]; then
   function_names+=(hub-terminal-staff-session)
 fi
 
@@ -293,6 +331,9 @@ done
 case "${deployment_mode}" in
   hold-staging-rehearsal)
     echo "Isolated staging schema 001-016 and all seven Hub receivers deployed for evidence rehearsal. Product release remains HOLD. Provision Android only with the matching public issuer-key map before hardware acceptance."
+    ;;
+  controlled-staging-function-configuration)
+    echo "Verified staging R001-R016 without schema mutation, configured Function secrets, and deployed all seven Hub receivers. Product release remains HOLD."
     ;;
   controlled-production-function-configuration)
     echo "Hub Functions configured for controlled production verification against the recorded R001A-R013 baseline. No schema migration was executed; product release remains HOLD."
