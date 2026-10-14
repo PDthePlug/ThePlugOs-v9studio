@@ -72,10 +72,17 @@ const publicCanonical = JSON.stringify({
   x: publicJwk.x,
   y: publicJwk.y,
 });
-const publicFingerprint = createHash('sha256').update(publicCanonical).digest('hex');
+const publicJwkFingerprint = createHash('sha256').update(publicCanonical).digest('hex');
+const publicSpkiBase64 = publicKey.export({ format: 'der', type: 'spki' }).toString('base64url');
+if (!/^[A-Za-z0-9_-]{64,4096}$/.test(publicSpkiBase64)) {
+  fail('Generated issuer SPKI public key is invalid.');
+}
 const date = new Date().toISOString().slice(0, 10).replaceAll('-', '');
-const issuerKeyId = `${keyLabel}.${date}.${publicFingerprint.slice(0, 16)}`;
+const issuerKeyId = `${keyLabel}.${date}.${publicJwkFingerprint.slice(0, 16)}`;
 if (!/^[A-Za-z0-9._-]{1,128}$/.test(issuerKeyId)) fail('Generated issuer key ID is invalid.');
+const configurationFingerprint = createHash('sha256')
+  .update(`${issuerKeyId}\n${publicSpkiBase64}`, 'utf8')
+  .digest('hex');
 
 const rateLimitPepper = randomBytes(32).toString('base64url');
 if (rateLimitPepper.length < 32) fail('Generated rate-limit pepper is too short.');
@@ -95,8 +102,10 @@ const privateEnv = [
 
 const publicEnv = [
   `HUB_AUTHORIZATION_ISSUER_KEY_ID=${issuerKeyId}`,
+  `HUB_AUTHORIZATION_ISSUER_PUBLIC_KEY_BASE64=${publicSpkiBase64}`,
   `HUB_AUTHORIZATION_ISSUER_PUBLIC_JWK_JSON='${publicCanonical}'`,
-  `HUB_AUTHORIZATION_ISSUER_PUBLIC_JWK_SHA256=${publicFingerprint}`,
+  `HUB_AUTHORIZATION_ISSUER_PUBLIC_JWK_SHA256=${publicJwkFingerprint}`,
+  `HUB_AUTHORIZATION_ISSUER_CONFIGURATION_SHA256=${configurationFingerprint}`,
   `HUB_AUTHORIZATION_BUNDLE_TTL_MINUTES=${ttlMinutes}`,
   `HUB_OWNER_PORTAL_ORIGIN=${canonicalOwnerOrigin}`,
   '',
@@ -105,9 +114,10 @@ const publicEnv = [
 await writeFile(privatePath, privateEnv, { mode: 0o600, flag: 'wx' });
 await writeFile(publicPath, publicEnv, { mode: 0o600, flag: 'wx' });
 
-console.log(`Generated ThePlugOS staging issuer material.`);
+console.log('Generated ThePlugOS staging issuer material.');
 console.log(`Private material: ${privatePath}`);
 console.log(`Public material:  ${publicPath}`);
 console.log(`Issuer key ID:    ${issuerKeyId}`);
-console.log(`Public JWK SHA-256: ${publicFingerprint}`);
+console.log(`Public JWK SHA-256: ${publicJwkFingerprint}`);
+console.log(`Issuer configuration SHA-256: ${configurationFingerprint}`);
 console.log('Private JWK and rate-limit pepper were not printed.');
