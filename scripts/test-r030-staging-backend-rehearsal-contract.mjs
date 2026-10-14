@@ -17,6 +17,7 @@ const [
   applicator,
   r014,
   r015,
+  r016,
   productionLedgerSource,
   releaseStatus,
   ownerEndpoint,
@@ -33,6 +34,7 @@ const [
   load('scripts/apply-staging-schema.mjs'),
   load('supabase/migrations/014_terminal_staff_session_and_command_authority.sql'),
   load('supabase/migrations/015_owner_control_plane_rls_hardening.sql'),
+  load('supabase/migrations/016_terminal_staff_session_index_hardening.sql'),
   load('supabase/production/iwbbwcaylpulcpvbfkdx-r001a-r013-ledger.json'),
   load('docs/operations/RELEASE_STATUS.md'),
   load('supabase/functions/hub-owner-enrollment/index.ts'),
@@ -106,7 +108,7 @@ for (const fragment of [
 assert.ok(!deployScript.includes('supabase db push'), 'The guarded helper must not rely on Supabase CLI migration discovery; R001A has a non-CLI filename and production has an immutable remote ledger.');
 assert.ok(
   deployScript.indexOf('node scripts/apply-staging-schema.mjs --apply') < deployScript.indexOf('supabase secrets set'),
-  'Staging schema must verify through R015 before any receiver secrets/code are published.',
+  'Staging schema must verify through R016 before any receiver secrets/code are published.',
 );
 assert.ok(
   deployScript.indexOf('supabase secrets set') < deployScript.indexOf('supabase functions deploy'),
@@ -135,10 +137,11 @@ const expectedOrder = [
   '013_production_schema_hardening.sql',
   '014_terminal_staff_session_and_command_authority.sql',
   '015_owner_control_plane_rls_hardening.sql',
+  '016_terminal_staff_session_index_hardening.sql',
 ];
 assert.deepEqual(plan.sourceOrder, expectedOrder, 'Staging must apply the canonical schema in exact authority order, including R001A.');
 assert.equal(plan.includesNonCliMigration, '001a_retire_unsupported_legacy_staff_pins.sql');
-assert.equal(plan.finalSchema, '015_owner_control_plane_rls_hardening.sql');
+assert.equal(plan.finalSchema, '016_terminal_staff_session_index_hardening.sql');
 
 for (const fragment of [
   "projectRef === productionProjectRef",
@@ -148,19 +151,31 @@ for (const fragment of [
   "git', ['status', '--porcelain']",
   'refusing to apply unreviewed migration contents',
   "STAGING_TARGET_NOT_EMPTY",
-  "apply-empty-staging:${projectRef}:${checkedCommit}:001-015",
+  "apply-empty-staging:${projectRef}:${checkedCommit}:001-016",
   "await client.query('begin')",
   "await client.query('rollback')",
   "r014_begin_terminal_staff_session",
   "Owners can create staff profiles for their businesses",
   "Owners can update catalog products for their businesses",
   "r015_staff_update_denied",
+  "r016_branch_index",
+  "r016_business_index",
+  "r016_hub_index",
+  "r016_prepared_session_index",
+  "r016_staff_index",
 ]) requireText(applicator, fragment);
 
 requireText(r014, 'r014_begin_terminal_staff_session');
 requireText(r014, 'r014_finalize_terminal_staff_session');
 requireText(r015, 'Owners can create staff profiles for their businesses');
 requireText(r015, 'Owners can update catalog products for their businesses');
+for (const indexName of [
+  'idx_hub_terminal_staff_session_challenges_branch_id',
+  'idx_hub_terminal_staff_session_challenges_business_id',
+  'idx_hub_terminal_staff_session_challenges_hub_device_id',
+  'idx_hub_terminal_staff_session_challenges_prepared_session_id',
+  'idx_hub_terminal_staff_session_challenges_staff_id',
+]) requireText(r016, indexName);
 assert.equal(JSON.parse(productionLedgerSource).entries.length, 13, 'Recorded production remains R001A-R013 until separately advanced with evidence.');
 assert.match(releaseStatus, /\*\*Status:\*\* HOLD/, 'Staging rehearsal source must not silently grant release authority.');
 
