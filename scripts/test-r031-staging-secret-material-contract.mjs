@@ -41,16 +41,46 @@ try {
   assert.ok(pepperMatch[1].length >= 32, 'Rate-limit pepper must meet the Edge minimum.');
   assert.match(keyIdMatch[1], /^[A-Za-z0-9._-]{1,128}$/);
 
-  assert.ok(publicSource.includes('HUB_AUTHORIZATION_ISSUER_PUBLIC_JWK_JSON='));
-  assert.ok(publicSource.includes('HUB_AUTHORIZATION_ISSUER_PUBLIC_JWK_SHA256='));
+  const publicSpkiMatch = publicSource.match(/HUB_AUTHORIZATION_ISSUER_PUBLIC_KEY_BASE64=([^\n]+)/);
+  const publicJwkMatch = publicSource.match(/HUB_AUTHORIZATION_ISSUER_PUBLIC_JWK_JSON='([^\n]+)'/);
+  const publicJwkFingerprintMatch = publicSource.match(/HUB_AUTHORIZATION_ISSUER_PUBLIC_JWK_SHA256=([0-9a-f]{64})/);
+  const configurationFingerprintMatch = publicSource.match(/HUB_AUTHORIZATION_ISSUER_CONFIGURATION_SHA256=([0-9a-f]{64})/);
+  const publicKeyIdMatch = publicSource.match(/HUB_AUTHORIZATION_ISSUER_KEY_ID=([^\n]+)/);
+  assert.ok(
+    publicSpkiMatch && publicJwkMatch && publicJwkFingerprintMatch && configurationFingerprintMatch && publicKeyIdMatch,
+    'Required public issuer handoff values are missing.',
+  );
+  assert.equal(publicKeyIdMatch[1], keyIdMatch[1], 'Private and public handoff files must identify the same issuer key.');
+  assert.match(publicSpkiMatch[1], /^[A-Za-z0-9_-]{64,4096}$/, 'Public SPKI must be canonical Base64URL material.');
   assert.ok(publicSource.includes('HUB_AUTHORIZATION_BUNDLE_TTL_MINUTES=720'));
   assert.ok(publicSource.includes('HUB_OWNER_PORTAL_ORIGIN=https://theplugos-v9studio.vercel.app'));
   assert.ok(!publicSource.includes(privateJwk.d), 'Public handoff must not contain the private scalar.');
   assert.ok(!publicSource.includes(pepperMatch[1]), 'Public handoff must not contain the rate-limit pepper.');
 
+  const verification = spawnSync(process.execPath, [
+    'scripts/verify-issuer-key-configuration.mjs',
+    '--emit-fingerprint',
+  ], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HUB_AUTHORIZATION_ISSUER_KEY_ID: keyIdMatch[1],
+      HUB_AUTHORIZATION_ISSUER_PRIVATE_JWK_JSON: privateJwkMatch[1],
+      HUB_AUTHORIZATION_ISSUER_PUBLIC_KEY_BASE64: publicSpkiMatch[1],
+    },
+  });
+  assert.equal(verification.status, 0, `Generated issuer handoff must satisfy deploy verifier: ${verification.stderr}`);
+  assert.equal(
+    verification.stdout.trim(),
+    configurationFingerprintMatch[1],
+    'Generator and deployment verifier must calculate the same non-secret issuer configuration fingerprint.',
+  );
+
   assert.ok(!run.stdout.includes(privateJwk.d), 'Generator stdout must not print private JWK material.');
   assert.ok(!run.stdout.includes(pepperMatch[1]), 'Generator stdout must not print the rate-limit pepper.');
   assert.ok(run.stdout.includes('Private JWK and rate-limit pepper were not printed.'));
+  assert.ok(run.stdout.includes(configurationFingerprintMatch[1]), 'Generator may print only the non-secret configuration fingerprint.');
 
   const second = spawnSync(process.execPath, [
     'scripts/generate-staging-secret-material.mjs',
