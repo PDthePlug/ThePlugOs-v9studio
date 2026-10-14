@@ -46,8 +46,10 @@ rate-limit configuration still require separate production evidence.
 The Android-native Cashier Hub remains the operational authority foundation.
 SQLCipher holds the local ledger, Android Keystore holds device keys, a signed
 authorization bundle establishes branch authority, and cloud receivers are
-designed to replicate durable Hub events. Native Cashier, Kitchen and Manager
-workspaces are role-minimized and do not borrow browser owner authority.
+designed to replicate durable Hub events. Source-only R004/R005 add
+order-transition authority and a cash-shift/cash-capture path. Native Cashier,
+Kitchen and Manager workspaces are role-minimized and do not borrow browser
+owner authority.
 
 The source contains owner-controlled Hub/terminal pairing, admission renewal and
 revocation, native local-link discovery, TLS certificate pinning, fresh terminal
